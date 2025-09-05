@@ -1,2 +1,2 @@
 # altinet
-A simple differential drive robot controller 
+an AI assistant using computer vision to contextualise and interpret the world 

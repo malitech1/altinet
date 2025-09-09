@@ -25,7 +25,16 @@ This creates a `.venv` directory with the dependencies listed in
 ```bash
 source .venv/bin/activate
 ```
+If Blender is installed, `install.sh` will also generate a basic floorplan at `assets/floorplans/basic_floorplan.blend`. To regenerate the floorplan manually run:
 
+```bash
+blender -b -noaudio --python scripts/generate_floorplan.py -- \
+  --out assets/floorplans/basic_floorplan.blend \
+  --width 10 --depth 8 --wall_height 3 --wall_thickness 0.2
+```
+
+
+Alternatively, use `make floorplan` to regenerate the file.
 ## ROS 2 Workspace
 
 

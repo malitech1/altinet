@@ -6,6 +6,22 @@ This repository currently contains a skeleton implementation. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a description of the project
 layout and intended components.
 
+## Installation
+
+The repository includes a helper script for setting up a Python virtual
+environment and installing the required packages:
+
+```bash
+./install.sh
+```
+
+This creates a `.venv` directory with the dependencies listed in
+`requirements.txt`. Activate the environment with:
+
+```bash
+source .venv/bin/activate
+```
+
 ## ROS 2 Workspace
 
 

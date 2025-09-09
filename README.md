@@ -1,5 +1,9 @@
 # altinet
 
+<p align="center">
+  <img src="docs/logo.svg" alt="Altinet logo" width="200">
+</p>
+
 An AI assistant using computer vision to contextualise and interpret the world.
 
 This repository currently contains a skeleton implementation. See

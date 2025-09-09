@@ -19,7 +19,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'minimal_node = altinet.nodes.minimal_node:main'
+ main
         ],
     },
 )

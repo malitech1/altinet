@@ -27,6 +27,7 @@ altinet/
 - **utils**: Shared helpers including cryptographic utilities.
 - **localnode**: A minimal Django application for running a local Altinet node.
 - **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
+ main
 - **tests**: Unit tests that exercise the behavior of the system.
 
 Each module is currently a placeholder and should be expanded as the project grows.

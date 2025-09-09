@@ -6,6 +6,17 @@ This repository currently contains a skeleton implementation. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a description of the project
 layout and intended components.
 
+## ROS 2 Workspace
+
+Altinet is organised as a ROS 2 workspace. To build and run the included
+example node:
+
+```bash
+colcon build
+source install/setup.bash
+ros2 run altinet minimal_node
+```
+
 ## Local Node GUI
 
 A minimal Django-based GUI is available for running a local Altinet node.

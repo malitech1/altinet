@@ -9,6 +9,8 @@ layout and intended components.
 ## ROS 2 Workspace
 
 
+
+ 
 Altinet is organised as a ROS 2 workspace. Ensure you have a ROS 2
 installation and the `colcon` build tool available. The computer vision
 nodes also rely on OpenCV and `cv_bridge`; face recognition requires the
@@ -16,15 +18,19 @@ optional `face_recognition` Python package.
 
 To build and run the included example nodes:
 =======
+
 Altinet is organised as a ROS 2 workspace. To build and run the included
 example node:
- main
+ 
+ 
 
 ```bash
 colcon build
 source install/setup.bash
 ros2 run altinet minimal_node
 
+
+ 
 # publish images from the default camera
 ros2 run altinet camera_node
 # detect faces in the image stream
@@ -33,12 +39,16 @@ ros2 run altinet face_detector_node
 ros2 run altinet face_identifier_node
 ```
 =======
+=======
 ```
 
-main
+
+ 
 ## Local Node GUI
 
 A minimal Django-based GUI is available for running a local Altinet node.
+It now includes a simple map editor for placing nodes around your home and a
+live view that reports basic environmental information.
 To launch the development server:
 
 ```bash

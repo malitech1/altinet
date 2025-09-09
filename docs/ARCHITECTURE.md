@@ -25,15 +25,15 @@ altinet/
 - **core**: Low level networking primitives that power Altinet.
 - **services**: Higher level capabilities such as discovery and messaging built on top of the core.
 - **utils**: Shared helpers including cryptographic utilities.
+- **localnode**: A minimal Django application for running a local Altinet node
+  with a map editor and live view.
+- **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
 - **localnode**: A minimal Django application for running a local Altinet node.
 - **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
-
   - `minimal_node`: placeholder node that logs a startup message.
   - `camera_node`: publishes images from a camera device.
   - `face_detector_node`: detects faces and publishes bounding boxes.
   - `face_identifier_node`: attempts to match faces against known identities.
-=======
- main
 - **tests**: Unit tests that exercise the behavior of the system.
 
 Each module is currently a placeholder and should be expanded as the project grows.

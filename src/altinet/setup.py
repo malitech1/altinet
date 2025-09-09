@@ -24,9 +24,8 @@ setup(
             'camera_node = altinet.nodes.camera_node:main',
             'face_detector_node = altinet.nodes.face_detector_node:main',
             'face_identifier_node = altinet.nodes.face_identifier_node:main',
-=======
             'minimal_node = altinet.nodes.minimal_node:main'
- main
+
         ],
     },
 )

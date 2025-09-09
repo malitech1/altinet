@@ -12,6 +12,8 @@ ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
+    "django.contrib.contenttypes",
+    "altinet.localnode",
 ]
 
 MIDDLEWARE = [
@@ -30,3 +32,10 @@ TEMPLATES = [
 ]
 
 STATIC_URL = "/static/"
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "localnode.sqlite3",
+    }
+}

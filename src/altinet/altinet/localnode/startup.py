@@ -21,4 +21,6 @@ def start_server(host: str = "127.0.0.1", port: int = 8000) -> None:
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "altinet.localnode.settings")
     django.setup()
+    # Ensure the database and tables exist before starting the server
+    call_command("migrate", interactive=False)
     call_command("runserver", f"{host}:{port}")

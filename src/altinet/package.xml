@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>altinet</name>
+  <version>0.1.0</version>
+  <description>Altinet ROS 2 package</description>
+  <maintainer email="maintainer@example.com">Altinet Maintainer</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+</package>

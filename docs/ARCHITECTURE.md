@@ -28,6 +28,8 @@ altinet/
 - **localnode**: A minimal Django application for running a local Altinet node
   with a map editor and live view.
 - **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
+- **localnode**: A minimal Django application for running a local Altinet node.
+- **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
   - `minimal_node`: placeholder node that logs a startup message.
   - `camera_node`: publishes images from a camera device.
   - `face_detector_node`: detects faces and publishes bounding boxes.

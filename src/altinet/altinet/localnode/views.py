@@ -7,6 +7,8 @@ from datetime import datetime
 from django.shortcuts import redirect, render
 
 from .map_store import load_map, save_map
+from django.shortcuts import render
+ 
 
 
 def home(request):

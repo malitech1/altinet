@@ -1,3 +1,5 @@
 Django>=4.2
 opencv-python
 face-recognition
+
+llama-cpp-python

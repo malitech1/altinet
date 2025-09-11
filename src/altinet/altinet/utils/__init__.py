@@ -1,3 +1,3 @@
 """Utility helpers for Altinet."""
 
-__all__ = ["crypto"]
+__all__ = ["crypto", "logger"]

@@ -7,6 +7,8 @@ from pathlib import Path
 from sensor_msgs.msg import Image
 from std_msgs.msg import Int32MultiArray
 
+from .camera_node import IMAGE_TOPIC
+
 try:
     from cv_bridge import CvBridge
 except ImportError:  # pragma: no cover - dependency might be missing
@@ -24,7 +26,7 @@ class FaceDetectorNode(Node):
     def __init__(self) -> None:
         super().__init__("face_detector_node")
         self.subscription = self.create_subscription(
-            Image, "camera/image", self.listener_callback, 10
+            Image, IMAGE_TOPIC, self.listener_callback, 10
         )
         self.publisher = self.create_publisher(Int32MultiArray, "faces", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None

@@ -2,6 +2,9 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 
+# Topic used to publish camera images so that other nodes can subscribe
+IMAGE_TOPIC = "camera/image"
+
 try:
     from cv_bridge import CvBridge
 except ImportError:  # pragma: no cover - dependency might be missing
@@ -18,7 +21,7 @@ class CameraNode(Node):
 
     def __init__(self) -> None:
         super().__init__("camera_node")
-        self.publisher = self.create_publisher(Image, "camera/image", 10)
+        self.publisher = self.create_publisher(Image, IMAGE_TOPIC, 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
         self.cap = cv2.VideoCapture(0) if cv2 else None
         if not cv2 or not self.cap or not self.cap.isOpened():

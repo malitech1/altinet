@@ -13,7 +13,8 @@ layout and intended components.
 ## Installation
 
 The repository includes a helper script for setting up a Python virtual
-environment and installing the required packages:
+environment and installing the required packages. The script checks for
+Python 3.10 and installs it on Debian-based systems if necessary:
 
 ```bash
 ./install.sh

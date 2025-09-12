@@ -42,6 +42,11 @@ class FaceDetectorNode(Node):
         if cv2:
             cascade_param = self.declare_parameter("cascade_path", "").value
             xml_path = Path(cascade_param) if cascade_param else None
+            if xml_path and not xml_path.is_absolute() and not xml_path.exists():
+                repo_root = REPO_CASCADE.parents[2]
+                alt_path = repo_root / xml_path
+                if alt_path.exists():
+                    xml_path = alt_path
             candidates = []
             if xml_path:
                 candidates.append(xml_path)
@@ -52,7 +57,18 @@ class FaceDetectorNode(Node):
             candidates.append(REPO_CASCADE)
             chosen = next((p for p in candidates if p and p.exists()), None)
             if chosen:
-                self.face_cascade = cv2.CascadeClassifier(str(chosen))
+                classifier = cv2.CascadeClassifier(str(chosen))
+                is_empty = (
+                    not classifier
+                    or getattr(classifier, "empty", lambda: False)()
+                )
+                if is_empty:
+                    self.get_logger().warning(
+                        f"Failed to load cascade from {chosen}; face detection disabled"
+                    )
+                    self.face_cascade = None
+                else:
+                    self.face_cascade = classifier
             else:
                 self.get_logger().warning(
                     "Face cascade XML not found. Install OpenCV data or provide "

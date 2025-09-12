@@ -79,6 +79,8 @@ ros2 run altinet face_detector_node --ros-args -p \
   cascade_path:=assets/haarcascades/haarcascade_frontalface_default.xml
 ```
 
+The path may be absolute or relative to the repository root.
+
 
 
  

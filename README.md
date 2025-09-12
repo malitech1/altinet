@@ -67,10 +67,13 @@ ros2 run altinet camera_node
 ros2 run altinet face_detector_node
 # attempt to identify detected faces
 ros2 run altinet face_identifier_node
+
 ```
-=======
-=======
-```
+
+OpenCV Haar cascade XML files for face and eye detection are available in
+`assets/haarcascades`. Use the `cascade_path` parameter with
+`face_detector_node` if your OpenCV build does not include these files.
+
 
 
  

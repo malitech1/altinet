@@ -29,16 +29,25 @@ class FaceDetectorNode(Node):
         self.publisher = self.create_publisher(Int32MultiArray, "faces", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
         if cv2:
-            cascade_dir = Path(getattr(cv2.data, "haarcascades", cv2.data))
-            xml_path = cascade_dir / "haarcascade_frontalface_default.xml"
-            xml_path = Path(self.declare_parameter("cascade_path", str(xml_path)).value)
-            if xml_path.exists():
-                self.face_cascade = cv2.CascadeClassifier(str(xml_path))
-            else:
+            data = getattr(cv2, "data", None)
+            if data is None:
                 self.get_logger().warning(
-                    f"Face cascade XML not found at {xml_path}; face detection disabled"
+                    "cv2.data not available; provide cascade_path parameter"
                 )
                 self.face_cascade = None
+            else:
+                cascade_dir = Path(getattr(data, "haarcascades", data))
+                xml_path = cascade_dir / "haarcascade_frontalface_default.xml"
+                xml_path = Path(
+                    self.declare_parameter("cascade_path", str(xml_path)).value
+                )
+                if xml_path.exists():
+                    self.face_cascade = cv2.CascadeClassifier(str(xml_path))
+                else:
+                    self.get_logger().warning(
+                        f"Face cascade XML not found at {xml_path}; face detection disabled"
+                    )
+                    self.face_cascade = None
         else:
             self.get_logger().warning("OpenCV not installed; face detection disabled")
             self.face_cascade = None

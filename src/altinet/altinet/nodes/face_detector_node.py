@@ -2,6 +2,8 @@ import time
 
 import rclpy
 from rclpy.node import Node
+from pathlib import Path
+
 from sensor_msgs.msg import Image
 from std_msgs.msg import Int32MultiArray
 
@@ -26,15 +28,22 @@ class FaceDetectorNode(Node):
         )
         self.publisher = self.create_publisher(Int32MultiArray, "faces", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
-        self.face_cascade = (
-            cv2.CascadeClassifier(
-                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        if cv2:
+            cascade_dir = getattr(
+                cv2, "data", Path(cv2.__file__).resolve().parent / "data"
             )
-            if cv2
-            else None
-        )
-        if not cv2:
+            cascade_dir = Path(getattr(cascade_dir, "haarcascades", cascade_dir))
+            xml_path = cascade_dir / "haarcascade_frontalface_default.xml"
+            if xml_path.exists():
+                self.face_cascade = cv2.CascadeClassifier(str(xml_path))
+            else:
+                self.get_logger().warning(
+                    f"Face cascade XML not found at {xml_path}; face detection disabled"
+                )
+                self.face_cascade = None
+        else:
             self.get_logger().warning("OpenCV not installed; face detection disabled")
+            self.face_cascade = None
         self.face_present_since = None
         self.required_presence = 2.0
 

@@ -63,7 +63,11 @@ class FaceDetectorNode(Node):
         self.required_presence = 2.0
 
     def listener_callback(self, msg: Image) -> None:
-        if not self.bridge or self.face_cascade is None:
+        if not self.bridge:
+            self.get_logger().warning("CvBridge not available; skipping frame")
+            return
+        if self.face_cascade is None:
+            self.get_logger().info("Received image frame but face detection is disabled")
             return
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)

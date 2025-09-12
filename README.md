@@ -95,5 +95,12 @@ To launch the development server:
 python -m altinet.localnode.startup
 ```
 
+To view and manage Wi-Fi connections directly, a simple network console can be
+launched with:
+
+```bash
+python -m altinet.core.network
+```
+
 By default the server binds to `127.0.0.1:8000`. You can override the host
 and port by passing arguments to `start_server`.

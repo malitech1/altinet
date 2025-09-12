@@ -77,7 +77,18 @@ ros2 run altinet face_identifier_node
 
 A minimal Django-based GUI is available for running a local Altinet node.
 It now includes a simple map editor for placing nodes around your home and a
-live view that reports basic environmental information.
+live view that reports basic environmental information. On startup the node
+connects to your home Wi-Fi and creates an isolated "Altinet" access point for
+other devices. Provide the necessary network details through environment
+variables before launching the server:
+
+```bash
+export ALTINET_HOME_WIFI_SSID="<home-ssid>"
+export ALTINET_HOME_WIFI_PASSWORD="<home-password>"
+export ALTINET_AP_SSID="Altinet"
+export ALTINET_AP_PASSWORD="altinetpass"
+```
+
 To launch the development server:
 
 ```bash

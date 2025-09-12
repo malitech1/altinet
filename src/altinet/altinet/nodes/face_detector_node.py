@@ -68,6 +68,9 @@ class FaceDetectorNode(Node):
                     )
                     self.face_cascade = None
                 else:
+                    self.get_logger().info(
+                        f"Loaded face cascade from {chosen}"
+                    )
                     self.face_cascade = classifier
             else:
                 self.get_logger().warning(
@@ -81,8 +84,12 @@ class FaceDetectorNode(Node):
         self.face_present_since = None
         self.required_presence = 2.0
         self._warned_face_disabled = False
+        self._received_frame = False
 
     def listener_callback(self, msg: Image) -> None:
+        if not self._received_frame:
+            self.get_logger().info("Connected to video stream; receiving frames")
+            self._received_frame = True
         if not self.bridge:
             self.get_logger().warning("CvBridge not available; skipping frame")
             return
@@ -100,6 +107,9 @@ class FaceDetectorNode(Node):
         now = time.time()
         if len(faces):
             if self.face_present_since is None:
+                self.get_logger().info(
+                    f"Detected {len(faces)} face(s) in current frame"
+                )
                 self.face_present_since = now
             duration = now - self.face_present_since
             if duration >= self.required_presence:

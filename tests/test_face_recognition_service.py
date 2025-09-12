@@ -36,3 +36,10 @@ def test_identifier_called_only_for_unknown_faces() -> None:
     second = service.recognize("face1")
     assert second == ("Alice", 0.9)
     assert backend.calls == 1
+
+
+def test_training_adds_known_identity() -> None:
+    service = FaceRecognitionService(encoder=FakeEncoder())
+    service.train("face2", "Bob", 0.8)
+    result = service.recognize("face2")
+    assert result == ("Bob", 0.8)

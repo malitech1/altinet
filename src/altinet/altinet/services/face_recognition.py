@@ -33,6 +33,23 @@ class FaceRecognitionService:
         self._known_identities: List[str] = []
         self._known_confidences: List[float] = []
 
+    def train(self, image: Any, identity: str, confidence: float = 1.0) -> None:
+        """Add ``image`` to the cache as ``identity``.
+
+        The image is encoded using the configured ``encoder`` and stored with
+        the provided identity and confidence. If the encoder is unavailable or
+        no encodings are produced, the call is ignored.
+        """
+        if self._encoder is None:
+            return
+        encodings = self._encoder.face_encodings(image)
+        if not encodings:
+            return
+        encoding = encodings[0]
+        self._known_encodings.append(encoding)
+        self._known_identities.append(identity)
+        self._known_confidences.append(confidence)
+
     def recognize(self, image: Any) -> Tuple[str, float]:
         """Return the identity and confidence for ``image``.
 

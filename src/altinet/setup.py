@@ -22,6 +22,7 @@ setup(
 
             'minimal_node = altinet.nodes.minimal_node:main',
             'camera_node = altinet.nodes.camera_node:main',
+            'camera_viewer_node = altinet.nodes.camera_viewer_node:main',
             'face_detector_node = altinet.nodes.face_detector_node:main',
             'face_identifier_node = altinet.nodes.face_identifier_node:main'
 

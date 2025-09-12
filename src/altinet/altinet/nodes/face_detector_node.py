@@ -29,18 +29,24 @@ class FaceDetectorNode(Node):
         self.publisher = self.create_publisher(Int32MultiArray, "faces", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
         if cv2:
+            # Declare parameter before checking cv2.data so a user-provided path
+            # can be used even when OpenCV lacks bundled cascade files.
+            cascade_param = self.declare_parameter("cascade_path", "").value
+            xml_path = Path(cascade_param) if cascade_param else None
             data = getattr(cv2, "data", None)
             if data is None:
-                self.get_logger().warning(
-                    "cv2.data not available; provide cascade_path parameter"
-                )
-                self.face_cascade = None
+                if xml_path and xml_path.exists():
+                    self.face_cascade = cv2.CascadeClassifier(str(xml_path))
+                else:
+                    self.get_logger().warning(
+                        "cv2.data not available; provide cascade_path parameter"
+                    )
+                    self.face_cascade = None
             else:
                 cascade_dir = Path(getattr(data, "haarcascades", data))
-                xml_path = cascade_dir / "haarcascade_frontalface_default.xml"
-                xml_path = Path(
-                    self.declare_parameter("cascade_path", str(xml_path)).value
-                )
+                default_xml = cascade_dir / "haarcascade_frontalface_default.xml"
+                if xml_path is None:
+                    xml_path = default_xml
                 if xml_path.exists():
                     self.face_cascade = cv2.CascadeClassifier(str(xml_path))
                 else:

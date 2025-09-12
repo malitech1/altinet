@@ -5,8 +5,8 @@ import importlib
 import sys
 
 
-def test_initialization_without_cv2_data(monkeypatch, tmp_path) -> None:
-    """Node should initialize even when ``cv2.data`` is missing."""
+def test_initialization_without_cascade_file(monkeypatch, tmp_path) -> None:
+    """Node should initialize even when the cascade XML is missing."""
 
     # Stub required ROS message modules
     sensor_msgs = ModuleType("sensor_msgs")
@@ -42,13 +42,20 @@ def test_initialization_without_cv2_data(monkeypatch, tmp_path) -> None:
         def get_logger(self):  # pragma: no cover - trivial
             return self.Logger()
 
+        def declare_parameter(self, name, default):
+            class Param:
+                def __init__(self, value):
+                    self.value = value
+
+            return Param(default)
+
     rclpy = ModuleType("rclpy")
     rclpy.node = ModuleType("rclpy.node")
     rclpy.node.Node = DummyNode
     monkeypatch.setitem(sys.modules, "rclpy", rclpy)
     monkeypatch.setitem(sys.modules, "rclpy.node", rclpy.node)
 
-    # Dummy cv2 without ``data`` attribute
+    # Dummy cv2 with ``data`` attribute pointing to non-existent cascades
     cv2 = ModuleType("cv2")
 
     class DummyCascade:
@@ -59,8 +66,12 @@ def test_initialization_without_cv2_data(monkeypatch, tmp_path) -> None:
             return []
 
     cv2.CascadeClassifier = DummyCascade
-    cv2.__file__ = str(tmp_path / "cv2" / "__init__.py")
-    (tmp_path / "cv2" / "data").mkdir(parents=True)
+
+    class Data:
+        pass
+
+    cv2.data = Data()
+    cv2.data.haarcascades = str(tmp_path / "does_not_exist")
     monkeypatch.setitem(sys.modules, "cv2", cv2)
 
     face_detector_node = importlib.import_module("altinet.nodes.face_detector_node")

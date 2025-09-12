@@ -29,11 +29,9 @@ class FaceDetectorNode(Node):
         self.publisher = self.create_publisher(Int32MultiArray, "faces", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
         if cv2:
-            cascade_dir = getattr(
-                cv2, "data", Path(cv2.__file__).resolve().parent / "data"
-            )
-            cascade_dir = Path(getattr(cascade_dir, "haarcascades", cascade_dir))
+            cascade_dir = Path(getattr(cv2.data, "haarcascades", cv2.data))
             xml_path = cascade_dir / "haarcascade_frontalface_default.xml"
+            xml_path = Path(self.declare_parameter("cascade_path", str(xml_path)).value)
             if xml_path.exists():
                 self.face_cascade = cv2.CascadeClassifier(str(xml_path))
             else:

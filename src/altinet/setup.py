@@ -1,11 +1,11 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 package_name = 'altinet'
 
 setup(
     name=package_name,
     version='0.1.0',
-    packages=[package_name],
+    packages=find_packages(),
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml'])
@@ -23,8 +23,7 @@ setup(
             'minimal_node = altinet.nodes.minimal_node:main',
             'camera_node = altinet.nodes.camera_node:main',
             'face_detector_node = altinet.nodes.face_detector_node:main',
-            'face_identifier_node = altinet.nodes.face_identifier_node:main',
-            'minimal_node = altinet.nodes.minimal_node:main'
+            'face_identifier_node = altinet.nodes.face_identifier_node:main'
 
         ],
     },

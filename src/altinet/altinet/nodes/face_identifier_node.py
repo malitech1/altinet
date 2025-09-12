@@ -1,7 +1,10 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
+from std_msgs.msg import Int32MultiArray, String
+
+from altinet.services.face_recognition import FaceRecognitionService
+from altinet.services.face_tracker import FaceTracker
 
 try:
     from cv_bridge import CvBridge
@@ -20,38 +23,41 @@ except ImportError:  # pragma: no cover - dependency might be missing
 
 
 class FaceIdentifierNode(Node):
-    """Identify known faces from incoming images."""
+    """Identify faces only when their identity is not already known."""
 
     def __init__(self) -> None:
         super().__init__("face_identifier_node")
-        self.subscription = self.create_subscription(
-            Image, "camera/image", self.listener_callback, 10
+        self.image_subscription = self.create_subscription(
+            Image, "camera/image", self._image_callback, 10
+        )
+        self.faces_subscription = self.create_subscription(
+            Int32MultiArray, "faces", self._faces_callback, 10
         )
         self.publisher = self.create_publisher(String, "identified_faces", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
-        self.known_encodings = []
-        self.known_names = []
+        self.recognition = FaceRecognitionService()
+        self.tracker = FaceTracker(self.recognition)
+        self._last_frame = None
         if not face_recognition:
             self.get_logger().warning(
-                "face_recognition module not installed; identification disabled"
+                "face_recognition module not installed; identification disabled",
             )
 
-    def listener_callback(self, msg: Image) -> None:
-        if not (self.bridge and face_recognition):
+    def _image_callback(self, msg: Image) -> None:
+        if not self.bridge:
             return
-        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
-        encodings = face_recognition.face_encodings(frame)
-        names = []
-        for encoding in encodings:
-            matches = face_recognition.compare_faces(self.known_encodings, encoding)
-            name = "Unknown"
-            if True in matches:
-                index = matches.index(True)
-                name = self.known_names[index]
-            names.append(name)
-        if names:
-            self.publisher.publish(String(data=", ".join(names)))
-            self.get_logger().info(f"Identified faces: {names}")
+        self._last_frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
+
+    def _faces_callback(self, msg: Int32MultiArray) -> None:
+        if self._last_frame is None:
+            return
+        data = msg.data
+        boxes = [tuple(data[i : i + 4]) for i in range(0, len(data), 4)]
+        results = self.tracker.update(self._last_frame, boxes)
+        if results:
+            payload = [f"{name}:{conf:.2f}" for name, conf in results]
+            self.publisher.publish(String(data=", ".join(payload)))
+            self.get_logger().info(f"Identified faces: {payload}")
 
 
 def main(args=None) -> None:

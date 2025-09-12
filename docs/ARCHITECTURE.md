@@ -32,7 +32,7 @@ altinet/
 - **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
   - `minimal_node`: placeholder node that logs a startup message.
   - `camera_node`: publishes images from a camera device.
-  - `face_detector_node`: detects faces and publishes bounding boxes.
+  - `face_detector_node`: detects faces and publishes bounding boxes after a time-based confidence check.
   - `face_identifier_node`: attempts to match faces against known identities.
 - **tests**: Unit tests that exercise the behavior of the system.
 

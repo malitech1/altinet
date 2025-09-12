@@ -1,8 +1,8 @@
 import time
+from pathlib import Path
 
 import rclpy
 from rclpy.node import Node
-from pathlib import Path
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import Int32MultiArray
@@ -20,6 +20,15 @@ except ImportError:  # pragma: no cover - dependency might be missing
     cv2 = None  # type: ignore
 
 
+# Default cascade shipped with the repository
+REPO_CASCADE = (
+    Path(__file__).resolve().parents[4]
+    / "assets"
+    / "haarcascades"
+    / "haarcascade_frontalface_default.xml"
+)
+
+
 class FaceDetectorNode(Node):
     """Detect faces in incoming images and publish bounding boxes."""
 
@@ -31,44 +40,44 @@ class FaceDetectorNode(Node):
         self.publisher = self.create_publisher(Int32MultiArray, "faces", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
         if cv2:
-            # Declare parameter before checking cv2.data so a user-provided path
-            # can be used even when OpenCV lacks bundled cascade files.
             cascade_param = self.declare_parameter("cascade_path", "").value
             xml_path = Path(cascade_param) if cascade_param else None
+            candidates = []
+            if xml_path:
+                candidates.append(xml_path)
             data = getattr(cv2, "data", None)
-            if data is None:
-                if xml_path and xml_path.exists():
-                    self.face_cascade = cv2.CascadeClassifier(str(xml_path))
-                else:
-                    self.get_logger().warning(
-                        "cv2.data not available; provide cascade_path parameter"
-                    )
-                    self.face_cascade = None
-            else:
+            if data is not None:
                 cascade_dir = Path(getattr(data, "haarcascades", data))
-                default_xml = cascade_dir / "haarcascade_frontalface_default.xml"
-                if xml_path is None:
-                    xml_path = default_xml
-                if xml_path.exists():
-                    self.face_cascade = cv2.CascadeClassifier(str(xml_path))
-                else:
-                    self.get_logger().warning(
-                        f"Face cascade XML not found at {xml_path}; face detection disabled"
-                    )
-                    self.face_cascade = None
+                candidates.append(cascade_dir / "haarcascade_frontalface_default.xml")
+            candidates.append(REPO_CASCADE)
+            chosen = next((p for p in candidates if p and p.exists()), None)
+            if chosen:
+                self.face_cascade = cv2.CascadeClassifier(str(chosen))
+            else:
+                self.get_logger().warning(
+                    "Face cascade XML not found. Install OpenCV data or provide "
+                    "--ros-args -p cascade_path:=/path/to/haarcascade_frontalface_default.xml"
+                )
+                self.face_cascade = None
         else:
             self.get_logger().warning("OpenCV not installed; face detection disabled")
             self.face_cascade = None
         self.face_present_since = None
         self.required_presence = 2.0
+        self._warned_face_disabled = False
 
     def listener_callback(self, msg: Image) -> None:
         if not self.bridge:
             self.get_logger().warning("CvBridge not available; skipping frame")
             return
         if self.face_cascade is None:
-            self.get_logger().info("Received image frame but face detection is disabled")
+            if not self._warned_face_disabled:
+                self.get_logger().info(
+                    "Received image frame but face detection is disabled"
+                )
+                self._warned_face_disabled = True
             return
+        self._warned_face_disabled = False
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)

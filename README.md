@@ -71,8 +71,13 @@ ros2 run altinet face_identifier_node
 ```
 
 OpenCV Haar cascade XML files for face and eye detection are available in
-`assets/haarcascades`. Use the `cascade_path` parameter with
-`face_detector_node` if your OpenCV build does not include these files.
+`assets/haarcascades`. If your OpenCV build does not include these files,
+pass their location to `face_detector_node`:
+
+```bash
+ros2 run altinet face_detector_node --ros-args -p \
+  cascade_path:=assets/haarcascades/haarcascade_frontalface_default.xml
+```
 
 
 

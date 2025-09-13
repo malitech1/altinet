@@ -27,6 +27,7 @@ class CameraNode(Node):
         if not cv2 or not self.cap or not self.cap.isOpened():
             self.get_logger().warning("Camera not available; no images will be published")
         self.timer = self.create_timer(0.1, self.timer_callback)
+        self._streaming_logged = False
 
     def timer_callback(self) -> None:
         if not self.cap or not self.cap.isOpened() or not self.bridge:
@@ -36,6 +37,9 @@ class CameraNode(Node):
             return
         msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
         self.publisher.publish(msg)
+        if not self._streaming_logged:
+            self.get_logger().info("Publishing video stream from default camera")
+            self._streaming_logged = True
 
     def destroy_node(self) -> None:  # pragma: no cover - resource cleanup
         if self.cap:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, List, Optional, Tuple
 
 try:  # pragma: no cover - optional dependency
@@ -42,7 +43,11 @@ class FaceRecognitionService:
         """
         if self._encoder is None:
             return
-        encodings = self._encoder.face_encodings(image)
+        try:
+            encodings = self._encoder.face_encodings(image)
+        except Exception as exc:  # pragma: no cover - defensive programming
+            logging.error("Failed to encode face for training: %s", exc)
+            return
         if not encodings:
             return
         encoding = encodings[0]
@@ -63,7 +68,11 @@ class FaceRecognitionService:
         if self._encoder is None:
             return "Unknown", 0.0
 
-        encodings = self._encoder.face_encodings(image)
+        try:
+            encodings = self._encoder.face_encodings(image)
+        except Exception as exc:  # pragma: no cover - defensive programming
+            logging.error("Failed to encode face for recognition: %s", exc)
+            return "Unknown", 0.0
         if not encodings:
             return "Unknown", 0.0
         encoding = encodings[0]

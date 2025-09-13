@@ -72,7 +72,9 @@ class FaceIdentifierNode(Node):
             return
         users_dir = REPO_USERS_DIR
         if not users_dir.exists():
+            self.get_logger().warning(f"Users directory '{users_dir}' does not exist")
             return
+        trained_any = False
         for user_dir in users_dir.iterdir():
             if not user_dir.is_dir():
                 continue
@@ -87,9 +89,23 @@ class FaceIdentifierNode(Node):
             photos_dir = user_dir / "photos"
             if not photos_dir.exists():
                 continue
-            for photo in photos_dir.glob("*.jpg"):
+            photo_files = list(photos_dir.glob("*.jpg"))
+            if not photo_files:
+                continue
+            count = 0
+            for photo in photo_files:
                 image = face_recognition.load_image_file(photo)
                 self.recognition.train(image, name)
+                count += 1
+            if count:
+                trained_any = True
+                self.get_logger().info(
+                    f"Trained user '{name}' with {count} photos"
+                )
+        if not trained_any:
+            self.get_logger().warning(
+                f"No valid user directories found in '{users_dir}'"
+            )
 
 
 def main(args=None) -> None:

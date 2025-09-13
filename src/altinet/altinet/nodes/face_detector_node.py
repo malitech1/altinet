@@ -85,6 +85,7 @@ class FaceDetectorNode(Node):
         self.required_presence = 2.0
         self._warned_face_disabled = False
         self._received_frame = False
+        self._reported_no_faces = False
 
     def listener_callback(self, msg: Image) -> None:
         if not self._received_frame:
@@ -119,7 +120,11 @@ class FaceDetectorNode(Node):
                 self.get_logger().info(
                     f"Detected {len(faces)} face(s) with confidence {duration:.2f}s"
                 )
+            self._reported_no_faces = False
         else:
+            if not self._reported_no_faces:
+                self.get_logger().info("No faces detected in current frame")
+                self._reported_no_faces = True
             self.face_present_since = None
 
 

@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -22,6 +25,9 @@ except ImportError:  # pragma: no cover - dependency might be missing
     cv2 = None  # type: ignore
 
 
+REPO_USERS_DIR = Path(__file__).resolve().parents[3] / "assets" / "users"
+
+
 class FaceIdentifierNode(Node):
     """Identify faces only when their identity is not already known."""
 
@@ -38,6 +44,7 @@ class FaceIdentifierNode(Node):
         self.recognition = FaceRecognitionService()
         self.tracker = FaceTracker(self.recognition)
         self._last_frame = None
+        self._load_known_users()
         if not face_recognition:
             self.get_logger().warning(
                 "face_recognition module not installed; identification disabled",
@@ -58,6 +65,31 @@ class FaceIdentifierNode(Node):
             payload = [f"{name}:{conf:.2f}" for name, conf in results]
             self.publisher.publish(String(data=", ".join(payload)))
             self.get_logger().info(f"Identified faces: {payload}")
+
+    def _load_known_users(self) -> None:
+        """Train recognition on any cached user photos."""
+        if face_recognition is None:
+            return
+        users_dir = REPO_USERS_DIR
+        if not users_dir.exists():
+            return
+        for user_dir in users_dir.iterdir():
+            if not user_dir.is_dir():
+                continue
+            metadata = user_dir / "metadata.json"
+            name = user_dir.name
+            if metadata.exists():
+                try:
+                    with metadata.open("r", encoding="utf-8") as fh:
+                        name = json.load(fh).get("name", name)
+                except Exception:
+                    pass
+            photos_dir = user_dir / "photos"
+            if not photos_dir.exists():
+                continue
+            for photo in photos_dir.glob("*.jpg"):
+                image = face_recognition.load_image_file(photo)
+                self.recognition.train(image, name)
 
 
 def main(args=None) -> None:

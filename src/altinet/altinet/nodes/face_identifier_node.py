@@ -57,14 +57,20 @@ class FaceIdentifierNode(Node):
 
     def _faces_callback(self, msg: Int32MultiArray) -> None:
         if self._last_frame is None:
+            self.get_logger().warning(
+                "Received faces without a corresponding frame; ignoring message"
+            )
             return
         data = msg.data
         boxes = [tuple(data[i : i + 4]) for i in range(0, len(data), 4)]
+        self.get_logger().debug(f"Received {len(boxes)} bounding boxes")
         results = self.tracker.update(self._last_frame, boxes)
         if results:
             payload = [f"{name}:{conf:.2f}" for name, conf in results]
             self.publisher.publish(String(data=", ".join(payload)))
             self.get_logger().info(f"Identified faces: {payload}")
+        else:
+            self.get_logger().debug("No faces identified")
 
     def _load_known_users(self) -> None:
         """Train recognition on any cached user photos."""

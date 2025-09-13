@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 
+import numpy as np
+
 from .face_recognition import FaceRecognitionService
 
 
@@ -82,7 +84,7 @@ class FaceTracker:
                 results.append((track.identity, track.confidence))
             else:
                 x, y, w, h = box
-                face_img = frame[y : y + h, x : x + w]
+                face_img = np.ascontiguousarray(frame[y : y + h, x : x + w])
                 identity, confidence = self._recognizer.recognize(face_img)
                 self._tracks.append(_Track(box, identity, confidence))
                 matched.append(True)

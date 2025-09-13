@@ -70,6 +70,24 @@ ros2 run altinet face_identifier_node
 
 ```
 
+### Preparing User Data
+
+`face_identifier_node` looks for known users under `assets/users`. The
+[`scripts/add_user.py`](scripts/add_user.py) helper stores information in this
+location by default, creating a directory for each person:
+
+```
+assets/users/
+  Alice/
+    metadata.json
+    photos/
+      photo_1.jpg
+      photo_2.jpg
+```
+
+Create this directory and populate it with user subdirectories before running
+`face_identifier_node` so that faces can be identified.
+
 OpenCV Haar cascade XML files for face and eye detection are available in
 `assets/haarcascades`. If your OpenCV build does not include these files,
 pass their location to `face_detector_node`:

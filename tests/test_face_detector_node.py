@@ -91,8 +91,8 @@ def test_listener_callback_logs_once(monkeypatch):
     assert logger.infos.count("Received image frame but face detection is disabled") == 1
 
 
-def test_initialization_uses_repo_cascade(monkeypatch):
-    """Falls back to repo cascade when cv2.data missing."""
+def test_initialization_uses_packaged_cascade(monkeypatch):
+    """Falls back to packaged cascade when cv2.data missing."""
 
     _stub_ros(monkeypatch)
 
@@ -113,7 +113,7 @@ def test_initialization_uses_repo_cascade(monkeypatch):
 
     node = face_module.FaceDetectorNode()
     assert isinstance(node.face_cascade, DummyCascade)
-    assert node.face_cascade.xml_path == str(face_module.REPO_CASCADE)
+    assert node.face_cascade.xml_path == str(face_module.PACKAGE_CASCADE)
 
 
 def test_initialization_without_any_cascade(monkeypatch, tmp_path):
@@ -132,7 +132,7 @@ def test_initialization_without_any_cascade(monkeypatch, tmp_path):
 
     monkeypatch.delitem(sys.modules, "altinet.nodes.face_detector_node", raising=False)
     face_module = importlib.import_module("altinet.nodes.face_detector_node")
-    monkeypatch.setattr(face_module, "REPO_CASCADE", tmp_path / "missing.xml")
+    monkeypatch.setattr(face_module, "PACKAGE_CASCADE", tmp_path / "missing.xml")
 
     node = face_module.FaceDetectorNode()
     assert node.face_cascade is None

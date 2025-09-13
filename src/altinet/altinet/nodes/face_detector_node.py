@@ -1,5 +1,6 @@
 import time
 from pathlib import Path
+from importlib import resources
 
 import rclpy
 from rclpy.node import Node
@@ -20,12 +21,10 @@ except ImportError:  # pragma: no cover - dependency might be missing
     cv2 = None  # type: ignore
 
 
-# Default cascade shipped with the repository
-REPO_CASCADE = (
-    Path(__file__).resolve().parents[4]
-    / "assets"
-    / "haarcascades"
-    / "haarcascade_frontalface_default.xml"
+# Default cascade shipped with the package
+PACKAGE_CASCADE = Path(
+    resources.files("altinet.assets.haarcascades")
+    .joinpath("haarcascade_frontalface_default.xml")
 )
 
 
@@ -43,7 +42,7 @@ class FaceDetectorNode(Node):
             cascade_param = self.declare_parameter("cascade_path", "").value
             xml_path = Path(cascade_param) if cascade_param else None
             if xml_path and not xml_path.is_absolute() and not xml_path.exists():
-                repo_root = REPO_CASCADE.parents[2]
+                repo_root = Path(__file__).resolve().parents[4]
                 alt_path = repo_root / xml_path
                 if alt_path.exists():
                     xml_path = alt_path
@@ -54,8 +53,8 @@ class FaceDetectorNode(Node):
             if data is not None:
                 cascade_dir = Path(getattr(data, "haarcascades", data))
                 candidates.append(cascade_dir / "haarcascade_frontalface_default.xml")
-            candidates.append(REPO_CASCADE)
-            chosen = next((p for p in candidates if p and p.exists()), None)
+            candidates.append(PACKAGE_CASCADE)
+            chosen = next((p for p in candidates if p and Path(p).exists()), None)
             if chosen:
                 classifier = cv2.CascadeClassifier(str(chosen))
                 is_empty = (

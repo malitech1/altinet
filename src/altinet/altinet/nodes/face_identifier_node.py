@@ -55,7 +55,7 @@ class FaceIdentifierNode(Node):
             return
         self._last_frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
         self.get_logger().debug(
-            "Received image frame %dx%d from camera", msg.width, msg.height
+            f"Received image frame {msg.width}x{msg.height} from camera"
         )
 
     def _faces_callback(self, msg: Int32MultiArray) -> None:

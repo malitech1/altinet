@@ -25,6 +25,8 @@ except ImportError:  # pragma: no cover - dependency might be missing
     cv2 = None  # type: ignore
 
 
+# Directory containing known-user data. Populated by ``scripts/add_user.py``;
+# see ``README`` for details about its structure.
 REPO_USERS_DIR = Path(__file__).resolve().parents[3] / "assets" / "users"
 
 
@@ -78,8 +80,10 @@ class FaceIdentifierNode(Node):
             return
         users_dir = REPO_USERS_DIR
         if not users_dir.exists():
-            self.get_logger().warning(f"Users directory '{users_dir}' does not exist")
-            return
+            users_dir.mkdir(parents=True, exist_ok=True)
+            self.get_logger().info(
+                f"Users directory '{users_dir}' did not exist and was created"
+            )
         trained_any = False
         for user_dir in users_dir.iterdir():
             if not user_dir.is_dir():

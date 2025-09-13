@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Interactively add a user and capture training photos."""
+"""Interactively add a user and capture training photos.
+
+By default, this script saves information to ``assets/users/<name>`` relative
+to the repository root.  Each user directory contains a ``metadata.json`` file
+and a ``photos`` subfolder with the captured training images.
+"""
 
 import argparse
 import json

@@ -84,9 +84,35 @@ ros2 run altinet face_detector_node --ros-args -p \
 
 The path may be absolute or relative to the repository root.
 
+## Face Recognition Utilities
 
+Use `scripts/add_user.py` to create a new user and capture initial training
+photos:
 
- 
+```bash
+python scripts/add_user.py
+```
+
+After collecting the initial images, augment the user's dataset with varied
+photos to improve recognition accuracy:
+
+```python
+from pathlib import Path
+from scripts.add_user import capture_additional_photos
+capture_additional_photos(Path("assets/users/<name>/photos"))
+```
+
+The helper captures 20 extra images, pausing one second between shots while
+prompting you to turn your head and, if available, swap hats.
+
+At runtime the face recognition cache can be cleared for an individual with:
+
+```python
+from altinet.services.face_recognition import FaceRecognitionService
+service = FaceRecognitionService()
+service.delete_user("<name>")
+```
+
 ## Local Node GUI
 
 A minimal Django-based GUI is available for running a local Altinet node.

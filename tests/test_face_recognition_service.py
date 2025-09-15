@@ -53,3 +53,11 @@ def test_recognize_logs_identity(caplog) -> None:
     with caplog.at_level(logging.INFO):
         service.recognize("face3")
     assert "Checked face identity: Charlie" in caplog.text
+
+
+def test_delete_user_removes_identity() -> None:
+    service = FaceRecognitionService(encoder=FakeEncoder())
+    service.train("face4", "Dave", 0.6)
+    service.delete_user("Dave")
+    # After deletion, the face should be unknown again
+    assert service.recognize("face4") == ("Unknown", 0.0)

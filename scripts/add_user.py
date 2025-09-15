@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -58,6 +59,40 @@ def capture_photos(out_dir: Path, count: int) -> None:
         if not ret:
             break
         filename = out_dir / f"photo_{i+1}.jpg"
+        cv2.imwrite(str(filename), frame)
+        print(f"Captured {filename}")
+    cap.release()
+
+
+def capture_additional_photos(out_dir: Path, count: int = 20) -> None:
+    """Capture extra photos with prompts for varied poses and hats.
+
+    A one-second delay is inserted between each capture to allow the user to
+    adjust their pose. For every image the user is prompted to turn their head
+    slightly and, if possible, change hats. If OpenCV or the camera is
+    unavailable, a message is printed and the function exits silently.
+    """
+    if cv2 is None:  # pragma: no cover - OpenCV not installed
+        print("OpenCV is not installed; skipping additional photo capture.")
+        return
+
+    cap = cv2.VideoCapture(0)  # pragma: no cover - requires hardware
+    if not cap.isOpened():  # pragma: no cover - requires hardware
+        print("Could not access camera; skipping additional photo capture.")
+        return
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(count):  # pragma: no cover - requires hardware
+        print(
+            "Prepare for photo {0}: turn head slightly and wear a different hat if possible.".format(
+                i + 1
+            )
+        )
+        time.sleep(1)
+        ret, frame = cap.read()
+        if not ret:
+            break
+        filename = out_dir / f"extra_{i+1}.jpg"
         cv2.imwrite(str(filename), frame)
         print(f"Captured {filename}")
     cap.release()

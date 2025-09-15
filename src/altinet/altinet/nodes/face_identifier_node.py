@@ -9,6 +9,7 @@ from std_msgs.msg import Int32MultiArray, String
 
 from altinet.services.face_recognition import FaceRecognitionService
 from altinet.services.person_tracker import PersonTracker
+from altinet.settings import settings
 
 try:
     from cv_bridge import CvBridge
@@ -50,7 +51,16 @@ class FaceIdentifierNode(Node):
         self._last_frame = None
         self._last_people_boxes = []
         self._last_track_ids = []
+        if settings.debug:
+            try:  # pragma: no cover - depends on rclpy logging implementation
+                from rclpy.logging import LoggingSeverity
+
+                self.get_logger().set_level(LoggingSeverity.DEBUG)
+            except Exception:
+                pass
+            self.get_logger().debug("Debug logging enabled")
         self._load_known_users()
+        self.get_logger().info("FaceIdentifierNode initialised")
         if not face_recognition:
             self.get_logger().warning(
                 "face_recognition module not installed; identification disabled",
@@ -58,6 +68,7 @@ class FaceIdentifierNode(Node):
 
     def _image_callback(self, msg: Image) -> None:
         if not self.bridge:
+            self.get_logger().debug("No CvBridge available; skipping frame")
             return
         self._last_frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
         self.get_logger().debug(
@@ -65,10 +76,15 @@ class FaceIdentifierNode(Node):
         )
 
     def _faces_callback(self, msg: Int32MultiArray) -> None:
-        if self._last_frame is None or face_recognition is None:
+        if self._last_frame is None:
+            self.get_logger().debug("No image frame available; skipping face data")
+            return
+        if face_recognition is None:
+            self.get_logger().debug("face_recognition module missing; cannot process faces")
             return
         data = msg.data
         boxes = [tuple(data[i : i + 4]) for i in range(0, len(data), 4)]
+        self.get_logger().debug(f"Processing {len(boxes)} face boxes")
         # First perform identification on the current frame
         results = []
         for box in boxes:
@@ -80,6 +96,9 @@ class FaceIdentifierNode(Node):
         track_ids: list[int] = []
         if self._last_people_boxes:
             track_ids = self.tracker.update(self._last_frame, self._last_people_boxes)
+            self.get_logger().debug(f"Updated tracker with {len(track_ids)} ids")
+        else:
+            self.get_logger().debug("No people boxes available for tracking")
         self._last_track_ids = track_ids
         payload = []
         for box, identity, confidence in results:
@@ -96,21 +115,30 @@ class FaceIdentifierNode(Node):
         if payload:
             self.publisher.publish(String(data=", ".join(payload)))
             self.get_logger().info(f"Identified people: {payload}")
+        else:
+            self.get_logger().debug("No faces identified in current frame")
 
     def _people_callback(self, msg: Int32MultiArray) -> None:
         data = msg.data
         self._last_people_boxes = [
             tuple(data[i : i + 4]) for i in range(0, len(data), 4)
         ]
+        self.get_logger().debug(
+            f"Received {len(self._last_people_boxes)} people boxes"
+        )
 
     def _load_known_users(self) -> None:
         """Train recognition on any cached user photos."""
         if face_recognition is None:
+            self.get_logger().debug(
+                "face_recognition module missing; skipping user training"
+            )
             return
         users_dir = REPO_USERS_DIR
         if not users_dir.exists():
             self.get_logger().warning(f"Users directory '{users_dir}' does not exist")
             return
+        self.get_logger().debug(f"Loading known users from {users_dir}")
         trained_any = False
         for user_dir in users_dir.iterdir():
             if not user_dir.is_dir():
@@ -129,6 +157,9 @@ class FaceIdentifierNode(Node):
             photo_files = list(photos_dir.glob("*.jpg"))
             if not photo_files:
                 continue
+            self.get_logger().debug(
+                f"Training user '{name}' with {len(photo_files)} photos"
+            )
             count = 0
             for photo in photo_files:
                 image = face_recognition.load_image_file(photo)
@@ -143,9 +174,14 @@ class FaceIdentifierNode(Node):
             self.get_logger().warning(
                 f"No valid user directories found in '{users_dir}'",
             )
+        else:
+            self.get_logger().debug("Finished loading known users")
 
 
 def main(args=None) -> None:
+    from altinet.settings import configure_logging
+
+    configure_logging()
     rclpy.init(args=args)
     node = FaceIdentifierNode()
     try:

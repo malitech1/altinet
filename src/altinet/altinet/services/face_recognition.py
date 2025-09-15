@@ -80,11 +80,16 @@ class FaceRecognitionService:
         matches = self._encoder.compare_faces(self._known_encodings, encoding)
         if True in matches:
             index = matches.index(True)
-            return self._known_identities[index], self._known_confidences[index]
+            identity = self._known_identities[index]
+            confidence = self._known_confidences[index]
+        else:
+            identity, confidence = self._identifier(encoding)
+            if identity != "Unknown":
+                self._known_encodings.append(encoding)
+                self._known_identities.append(identity)
+                self._known_confidences.append(confidence)
 
-        identity, confidence = self._identifier(encoding)
-        if identity != "Unknown":
-            self._known_encodings.append(encoding)
-            self._known_identities.append(identity)
-            self._known_confidences.append(confidence)
+        logging.info(
+            "Checked face identity: %s (confidence %.2f)", identity, confidence
+        )
         return identity, confidence

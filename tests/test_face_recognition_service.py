@@ -1,5 +1,7 @@
 """Tests for the face recognition service."""
 
+import logging
+
 from altinet.services.face_recognition import FaceRecognitionService
 
 
@@ -43,3 +45,11 @@ def test_training_adds_known_identity() -> None:
     service.train("face2", "Bob", 0.8)
     result = service.recognize("face2")
     assert result == ("Bob", 0.8)
+
+
+def test_recognize_logs_identity(caplog) -> None:
+    service = FaceRecognitionService(encoder=FakeEncoder())
+    service.train("face3", "Charlie", 0.7)
+    with caplog.at_level(logging.INFO):
+        service.recognize("face3")
+    assert "Checked face identity: Charlie" in caplog.text

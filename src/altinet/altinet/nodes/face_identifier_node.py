@@ -65,46 +65,43 @@ class FaceIdentifierNode(Node):
         )
 
     def _faces_callback(self, msg: Int32MultiArray) -> None:
-        if (
-            self._last_frame is None
-            or not self._last_people_boxes
-            or face_recognition is None
-        ):
+        if self._last_frame is None or face_recognition is None:
             return
         data = msg.data
         boxes = [tuple(data[i : i + 4]) for i in range(0, len(data), 4)]
+        # First perform identification on the current frame
+        results = []
         for box in boxes:
-            best_iou = 0.0
-            best_id = None
-            for track_id, pbox in zip(self._last_track_ids, self._last_people_boxes):
-                iou = PersonTracker._iou(box, pbox)
-                if iou > best_iou:
-                    best_iou, best_id = iou, track_id
-            if best_id is None or best_iou == 0.0:
-                continue
             x, y, w, h = box
             face_img = np.ascontiguousarray(self._last_frame[y : y + h, x : x + w])
             identity, confidence = self.recognition.recognize(face_img)
-            self._track_identities[best_id] = (identity, confidence)
-
-    def _people_callback(self, msg: Int32MultiArray) -> None:
-        if self._last_frame is None:
-            self.get_logger().warning(
-                "Received people without a corresponding frame; ignoring message",
-            )
-            return
-        data = msg.data
-        boxes = [tuple(data[i : i + 4]) for i in range(0, len(data), 4)]
-        track_ids = self.tracker.update(self._last_frame, boxes)
-        self._last_people_boxes = boxes
+            results.append((box, identity, confidence))
+        # Then update the body tracker and associate identities
+        track_ids: list[int] = []
+        if self._last_people_boxes:
+            track_ids = self.tracker.update(self._last_frame, self._last_people_boxes)
         self._last_track_ids = track_ids
         payload = []
-        for tid in track_ids:
-            name, conf = self._track_identities.get(tid, ("Unknown", 0.0))
-            payload.append(f"{tid}:{name}:{conf:.2f}")
+        for box, identity, confidence in results:
+            best_iou = 0.0
+            best_id = None
+            for tid, pbox in zip(track_ids, self._last_people_boxes):
+                iou = PersonTracker._iou(box, pbox)
+                if iou > best_iou:
+                    best_iou, best_id = iou, tid
+            if best_id is None or best_iou == 0.0:
+                continue
+            self._track_identities[best_id] = (identity, confidence)
+            payload.append(f"{best_id}:{identity}:{confidence:.2f}")
         if payload:
             self.publisher.publish(String(data=", ".join(payload)))
             self.get_logger().info(f"Identified people: {payload}")
+
+    def _people_callback(self, msg: Int32MultiArray) -> None:
+        data = msg.data
+        self._last_people_boxes = [
+            tuple(data[i : i + 4]) for i in range(0, len(data), 4)
+        ]
 
     def _load_known_users(self) -> None:
         """Train recognition on any cached user photos."""

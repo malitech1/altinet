@@ -25,6 +25,13 @@ def test_capture_photos_without_cv2(monkeypatch, tmp_path, capsys):
     assert "OpenCV is not installed" in capsys.readouterr().out
 
 
+def test_capture_additional_photos_without_cv2(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(add_user, "cv2", None)
+    add_user.capture_additional_photos(tmp_path, 2)
+    assert not list(tmp_path.iterdir())
+    assert "OpenCV is not installed" in capsys.readouterr().out
+
+
 def test_train_user_photos_without_face_recognition(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(add_user, "face_recognition", None)
     add_user.train_user_photos(tmp_path, "Alice")

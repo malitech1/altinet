@@ -55,6 +55,23 @@ class FaceRecognitionService:
         self._known_identities.append(identity)
         self._known_confidences.append(confidence)
 
+    def delete_user(self, identity: str) -> None:
+        """Remove all cached data for ``identity``.
+
+        Parameters
+        ----------
+        identity:
+            The name of the user to remove from the in-memory cache. Any
+            encodings, identities and confidences associated with this identity
+            are deleted. The method silently does nothing if the identity is not
+            present.
+        """
+        indexes = [i for i, known in enumerate(self._known_identities) if known == identity]
+        for index in reversed(indexes):
+            del self._known_encodings[index]
+            del self._known_identities[index]
+            del self._known_confidences[index]
+
     def recognize(self, image: Any) -> Tuple[str, float]:
         """Return the identity and confidence for ``image``.
 

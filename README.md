@@ -6,6 +6,9 @@
 
 An AI assistant using computer vision to contextualise and interpret the world.
 
+It includes an offline speech synthesis service for producing human-like
+spoken responses without relying on external APIs.
+
 This repository currently contains a skeleton implementation. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a description of the project
 layout and intended components.

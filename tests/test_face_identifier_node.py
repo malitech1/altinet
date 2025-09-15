@@ -16,7 +16,11 @@ def _stub_ros(monkeypatch):
     std_msgs = ModuleType("std_msgs")
     std_msgs.msg = ModuleType("std_msgs.msg")
     std_msgs.msg.Int32MultiArray = object
-    std_msgs.msg.String = object
+    class DummyString:
+        def __init__(self, data=""):
+            self.data = data
+
+    std_msgs.msg.String = DummyString
     monkeypatch.setitem(sys.modules, "std_msgs", std_msgs)
     monkeypatch.setitem(sys.modules, "std_msgs.msg", std_msgs.msg)
 
@@ -29,7 +33,11 @@ def _stub_ros(monkeypatch):
             pass
 
         def create_publisher(self, *a, **k):
-            pass
+            class Pub:
+                def publish(self, *a, **k):
+                    pass
+
+            return Pub()
 
         class Logger:
             def warning(self, *a, **k):
@@ -87,3 +95,66 @@ def test_load_known_users_on_startup(monkeypatch, tmp_path):
 
     node = face_module.FaceIdentifierNode()
     assert node.recognition.trained == [(f"img:{photo}", "Alice")]
+
+
+def test_retries_unknown_identity(monkeypatch):
+    _stub_ros(monkeypatch)
+
+    face_rec = ModuleType("face_recognition")
+    monkeypatch.setitem(sys.modules, "face_recognition", face_rec)
+
+    cv2 = ModuleType("cv2")
+    monkeypatch.setitem(sys.modules, "cv2", cv2)
+
+    cv_bridge = ModuleType("cv_bridge")
+    cv_bridge.CvBridge = object
+    monkeypatch.setitem(sys.modules, "cv_bridge", cv_bridge)
+
+    class DummyService:
+        def __init__(self):
+            self.calls = 0
+
+        def recognize(self, image):
+            self.calls += 1
+            if self.calls == 1:
+                return "Unknown", 0.0
+            return "Alice", 0.9
+
+        def train(self, *a, **k):
+            pass
+
+    class DummyTracker:
+        def __init__(self):
+            self.calls = 0
+
+        @staticmethod
+        def _iou(a, b):
+            return 1.0
+
+        def update(self, frame, boxes):
+            self.calls += 1
+            return [1] * len(boxes)
+
+    import altinet.services.face_recognition as fr
+    import altinet.services.person_tracker as pt
+    monkeypatch.setattr(fr, "FaceRecognitionService", DummyService)
+    monkeypatch.setattr(pt, "PersonTracker", DummyTracker)
+
+    monkeypatch.delitem(sys.modules, "altinet.nodes.face_identifier_node", raising=False)
+    face_module = importlib.import_module("altinet.nodes.face_identifier_node")
+    node = face_module.FaceIdentifierNode()
+
+    import numpy as np
+
+    node._last_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    people_msg = type("Msg", (), {"data": [0, 0, 5, 5]})
+    node._people_callback(people_msg)
+
+    face_msg = type("Msg", (), {"data": [0, 0, 5, 5]})
+    node._faces_callback(face_msg)
+    assert node.tracker.calls == 1
+    assert node._track_identities[1][0] == "Unknown"
+
+    node._faces_callback(face_msg)
+    assert node.tracker.calls == 2
+    assert node._track_identities[1][0] == "Alice"

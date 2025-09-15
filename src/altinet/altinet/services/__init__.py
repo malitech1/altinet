@@ -7,5 +7,6 @@ __all__ = [
     "llm",
     "face_recognition",
     "face_tracker",
+    "person_tracker",
     "speech",
 ]

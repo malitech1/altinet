@@ -1,13 +1,14 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from std_msgs.msg import Int32MultiArray, String
 
 from altinet.services.face_recognition import FaceRecognitionService
-from altinet.services.face_tracker import FaceTracker
+from altinet.services.person_tracker import PersonTracker
 
 try:
     from cv_bridge import CvBridge
@@ -24,12 +25,11 @@ try:
 except ImportError:  # pragma: no cover - dependency might be missing
     cv2 = None  # type: ignore
 
-
 REPO_USERS_DIR = Path(__file__).resolve().parents[3] / "assets" / "users"
 
 
 class FaceIdentifierNode(Node):
-    """Identify faces only when their identity is not already known."""
+    """Track and identify people using face recognition when available."""
 
     def __init__(self) -> None:
         super().__init__("face_identifier_node")
@@ -39,11 +39,17 @@ class FaceIdentifierNode(Node):
         self.faces_subscription = self.create_subscription(
             Int32MultiArray, "faces", self._faces_callback, 10
         )
-        self.publisher = self.create_publisher(String, "identified_faces", 10)
+        self.people_subscription = self.create_subscription(
+            Int32MultiArray, "people", self._people_callback, 10
+        )
+        self.publisher = self.create_publisher(String, "identified_people", 10)
         self.bridge = CvBridge() if CvBridge and cv2 else None
         self.recognition = FaceRecognitionService()
-        self.tracker = FaceTracker(self.recognition)
+        self.tracker = PersonTracker()
+        self._track_identities = {}
         self._last_frame = None
+        self._last_people_boxes = []
+        self._last_track_ids = []
         self._load_known_users()
         if not face_recognition:
             self.get_logger().warning(
@@ -55,25 +61,50 @@ class FaceIdentifierNode(Node):
             return
         self._last_frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
         self.get_logger().debug(
-            f"Received image frame {msg.width}x{msg.height} from camera"
+            f"Received image frame {msg.width}x{msg.height} from camera",
         )
 
     def _faces_callback(self, msg: Int32MultiArray) -> None:
+        if (
+            self._last_frame is None
+            or not self._last_people_boxes
+            or face_recognition is None
+        ):
+            return
+        data = msg.data
+        boxes = [tuple(data[i : i + 4]) for i in range(0, len(data), 4)]
+        for box in boxes:
+            best_iou = 0.0
+            best_id = None
+            for track_id, pbox in zip(self._last_track_ids, self._last_people_boxes):
+                iou = PersonTracker._iou(box, pbox)
+                if iou > best_iou:
+                    best_iou, best_id = iou, track_id
+            if best_id is None or best_iou == 0.0:
+                continue
+            x, y, w, h = box
+            face_img = np.ascontiguousarray(self._last_frame[y : y + h, x : x + w])
+            identity, confidence = self.recognition.recognize(face_img)
+            self._track_identities[best_id] = (identity, confidence)
+
+    def _people_callback(self, msg: Int32MultiArray) -> None:
         if self._last_frame is None:
             self.get_logger().warning(
-                "Received faces without a corresponding frame; ignoring message"
+                "Received people without a corresponding frame; ignoring message",
             )
             return
         data = msg.data
         boxes = [tuple(data[i : i + 4]) for i in range(0, len(data), 4)]
-        self.get_logger().debug(f"Received {len(boxes)} bounding boxes")
-        results = self.tracker.update(self._last_frame, boxes)
-        if results:
-            payload = [f"{name}:{conf:.2f}" for name, conf in results]
+        track_ids = self.tracker.update(self._last_frame, boxes)
+        self._last_people_boxes = boxes
+        self._last_track_ids = track_ids
+        payload = []
+        for tid in track_ids:
+            name, conf = self._track_identities.get(tid, ("Unknown", 0.0))
+            payload.append(f"{tid}:{name}:{conf:.2f}")
+        if payload:
             self.publisher.publish(String(data=", ".join(payload)))
-            self.get_logger().info(f"Identified faces: {payload}")
-        else:
-            self.get_logger().debug("No faces identified")
+            self.get_logger().info(f"Identified people: {payload}")
 
     def _load_known_users(self) -> None:
         """Train recognition on any cached user photos."""
@@ -109,11 +140,11 @@ class FaceIdentifierNode(Node):
             if count:
                 trained_any = True
                 self.get_logger().info(
-                    f"Trained user '{name}' with {count} photos"
+                    f"Trained user '{name}' with {count} photos",
                 )
         if not trained_any:
             self.get_logger().warning(
-                f"No valid user directories found in '{users_dir}'"
+                f"No valid user directories found in '{users_dir}'",
             )
 
 

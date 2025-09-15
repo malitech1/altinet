@@ -3,3 +3,4 @@ opencv-python
 face-recognition
 
 llama-cpp-python
+pyttsx3

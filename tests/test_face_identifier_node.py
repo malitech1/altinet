@@ -46,6 +46,12 @@ def _stub_ros(monkeypatch):
             def info(self, *a, **k):
                 pass
 
+            def debug(self, *a, **k):
+                pass
+
+            def set_level(self, *a, **k):
+                pass
+
         def get_logger(self):
             return self._logger
 

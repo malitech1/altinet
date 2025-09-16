@@ -14,8 +14,6 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('altinet/launch/*.py')),
         ('share/' + package_name + '/config', glob('altinet/config/*.yaml')),
-        ('share/' + package_name + '/msg', glob('altinet/msgs/*.msg')),
-        ('share/' + package_name + '/srv', glob('altinet/srv/*.srv')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

@@ -3,6 +3,8 @@
 __all__ = [
     "nodes",
     "utils",
+    "msg",
+    "srv",
 ]
 
 __version__ = "0.2.0"

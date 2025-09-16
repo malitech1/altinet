@@ -20,13 +20,15 @@ try:  # pragma: no cover - optional dependency
 except ImportError:  # pragma: no cover - executed when websocket-client missing
     websocket = None
 
+_ROS_IMPORT_ERROR: Optional[Exception] = None
 try:  # pragma: no cover
     import rclpy
     from rclpy.node import Node
     from altinet.msg import Event as EventMsg
     from altinet.msg import PersonTracks as PersonTracksMsg
     from altinet.msg import RoomPresence as RoomPresenceMsg
-except Exception:  # pragma: no cover - executed in tests
+except ImportError as exc:  # pragma: no cover - executed in tests
+    _ROS_IMPORT_ERROR = exc
     rclpy = None
     Node = object  # type: ignore
     EventMsg = PersonTracksMsg = RoomPresenceMsg = None
@@ -269,7 +271,10 @@ __all__ = [
 
 def main(args=None):  # pragma: no cover - requires ROS runtime
     if rclpy is None:
-        raise RuntimeError("ROS 2 is not available in this environment")
+        message = "ROS 2 dependencies could not be imported"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     rclpy.init(args=args)
     node = Ros2DjangoBridgeNode()
     try:

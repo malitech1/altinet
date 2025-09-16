@@ -1,146 +1,84 @@
-# altinet
+# Altinet
 
-<p align="center">
-  <img src="docs/logo.png" alt="Altinet logo" width="200">
-</p>
+Altinet is a home perception stack that detects, tracks and contextualises
+people in real-time. The project couples a ROS 2 based pipeline with a
+Django backend for dashboards and historical analysis.
 
-An AI assistant using computer vision to contextualise and interpret the world.
+## Features
 
-It includes an offline speech synthesis service for producing human-like
-spoken responses without relying on external APIs.
+- **Camera ingestion** supporting USB or RTSP sources per room.
+- **Person detection** using YOLOv8n ONNX with CPU-friendly inference.
+- **ByteTrack-inspired tracking** providing stable IDs across frames.
+- **Event manager** deriving entry/exit/position change events and room
+  presence counts.
+- **Lighting control** with rule engine and manual override service.
+- **ROS→Django bridge** streaming events, tracks and presence to the web
+  stack with privacy-aware buffering.
 
-This repository currently contains a skeleton implementation. See
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a description of the project
-layout and intended components.
+## Repository layout
 
-## Installation
+- `ros2_ws/src/altinet`: ROS 2 Python package with nodes, configs and tests.
+- `assets/models`: ONNX models (download `yolov8n.onnx` here).
+- `assets/calibration`: Room calibration files (homography, ROI, etc.).
+- `docs`: Architecture notes, ADRs and generated API docs.
 
-The repository includes a helper script for setting up a Python virtual
-environment and installing the required packages. The script checks for
-Python 3.10 and installs it on Debian-based systems if necessary:
+## Getting started
 
-```bash
-./install.sh
-```
+1. Install dependencies into a virtual environment:
 
-This creates a `.venv` directory with the dependencies listed in
-`requirements.txt`. Activate the environment with:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
-```bash
-source .venv/bin/activate
-```
-If Blender is installed, `install.sh` will also generate a basic floorplan at `assets/floorplans/basic_floorplan.blend`. To regenerate the floorplan manually run:
+2. Build the ROS 2 workspace (requires ROS 2 Foxy/Humble and `colcon`):
 
-```bash
-blender -b -noaudio --python scripts/generate_floorplan.py -- \
-  --out assets/floorplans/basic_floorplan.blend \
-  --width 10 --depth 8 --wall_height 3 --wall_thickness 0.2
-```
+   ```bash
+   cd ros2_ws
+   colcon build
+   source install/setup.bash
+   ```
 
+3. Launch the full stack for a single room:
 
-Alternatively, use `make floorplan` to regenerate the file.
-## ROS 2 Workspace
+   ```bash
+   ros2 launch altinet altinet_full_system.launch.py room_id:=living_room
+   ```
 
+   Or run individual nodes for debugging:
 
+   ```bash
+   ros2 run altinet detector_node --ros-args -p room_id:=living_room -p config:=config/yolo.yaml
+   ros2 run altinet tracker_node
+   ros2 run altinet event_manager_node --ros-args -p presence_timeout_s:=3.0
+   ros2 run altinet lighting_control_node --ros-args -p cooldown_s:=15.0
+   ros2 run altinet ros2_django_bridge_node --ros-args -p privacy_config:=config/privacy.yaml
+   ```
 
- 
-Altinet is organised as a ROS 2 workspace. Ensure you have a ROS 2
-installation and the `colcon` build tool available. The computer vision
-nodes also rely on OpenCV and `cv_bridge`; face recognition requires the
-optional `face_recognition` Python package.
+4. Regenerate documentation:
 
-To build and run the included example nodes:
-=======
+   ```bash
+   make docs
+   ```
 
-Altinet is organised as a ROS 2 workspace. To build and run the included
-example node:
- 
- 
+5. Run the offline demo (requires a recorded video):
 
-```bash
-colcon build
-source install/setup.bash
-ros2 run altinet minimal_node
+   ```bash
+   python scripts/run_demo.py path/to/video.mp4 --room living_room
+   ```
 
+## Testing
 
- 
-# publish images from the default camera
-ros2 run altinet camera_node
-# detect faces in the image stream
-ros2 run altinet face_detector_node
-# attempt to identify detected faces
-ros2 run altinet face_identifier_node
-
-```
-
-OpenCV Haar cascade XML files for face and eye detection are available in
-`assets/haarcascades`. If your OpenCV build does not include these files,
-pass their location to `face_detector_node`:
+Unit tests run without ROS message generation thanks to pure-Python
+components:
 
 ```bash
-ros2 run altinet face_detector_node --ros-args -p \
-  cascade_path:=assets/haarcascades/haarcascade_frontalface_default.xml
+pytest
 ```
 
-The path may be absolute or relative to the repository root.
+## Privacy
 
-## Face Recognition Utilities
-
-Use `scripts/add_user.py` to create a new user and capture initial training
-photos:
-
-```bash
-python scripts/add_user.py
-```
-
-After collecting the initial images, augment the user's dataset with varied
-photos to improve recognition accuracy:
-
-```python
-from pathlib import Path
-from scripts.add_user import capture_additional_photos
-capture_additional_photos(Path("assets/users/<name>/photos"))
-```
-
-The helper captures 20 extra images, pausing one second between shots while
-prompting you to turn your head and, if available, swap hats.
-
-At runtime the face recognition cache can be cleared for an individual with:
-
-```python
-from altinet.services.face_recognition import FaceRecognitionService
-service = FaceRecognitionService()
-service.delete_user("<name>")
-```
-
-## Local Node GUI
-
-A minimal Django-based GUI is available for running a local Altinet node.
-It now includes a simple map editor for placing nodes around your home and a
-live view that reports basic environmental information. On startup the node
-connects to your home Wi-Fi and creates an isolated "Altinet" access point for
-other devices. Provide the necessary network details through environment
-variables before launching the server:
-
-```bash
-export ALTINET_HOME_WIFI_SSID="<home-ssid>"
-export ALTINET_HOME_WIFI_PASSWORD="<home-password>"
-export ALTINET_AP_SSID="Altinet"
-export ALTINET_AP_PASSWORD="altinetpass"
-```
-
-To launch the development server:
-
-```bash
-python -m altinet.localnode.startup
-```
-
-To view and manage Wi-Fi connections directly, a simple network console can be
-launched with:
-
-```bash
-python -m altinet.core.network
-```
-
-By default the server binds to `127.0.0.1:8000`. You can override the host
-and port by passing arguments to `start_server`.
+By default `config/privacy.yaml` disables upstream forwarding. Set
+`forward_allowed: true` when you are ready to stream events to the Django
+backend.

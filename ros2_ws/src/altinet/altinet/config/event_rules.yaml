@@ -1,0 +1,4 @@
+{
+  "presence_timeout_s": 2.5,
+  "position_threshold": 0.05
+}

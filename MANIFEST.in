@@ -1,1 +1,4 @@
-recursive-include src/altinet/altinet/assets/haarcascades *.xml
+recursive-include ros2_ws/src/altinet/altinet/config *.yaml
+recursive-include ros2_ws/src/altinet/altinet/launch *.py
+recursive-include ros2_ws/src/altinet/altinet/msgs *.msg
+recursive-include ros2_ws/src/altinet/altinet/srv *.srv

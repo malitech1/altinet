@@ -1,0 +1,6 @@
+{
+  "track_thresh": 0.45,
+  "match_thresh": 0.7,
+  "max_age": 30,
+  "min_hits": 3
+}

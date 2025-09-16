@@ -1,6 +1,18 @@
-.PHONY: floorplan
+PYTHONPATH := ros2_ws/src
 
-floorplan:
-	blender -b -noaudio --python scripts/generate_floorplan.py -- \
-	  --out assets/floorplans/basic_floorplan.blend \
-	  --width 10 --depth 8 --wall_height 3 --wall_thickness 0.2
+.PHONY: docs test lint format mypy
+
+docs:
+	PYTHONPATH=$(PYTHONPATH) python scripts/generate_api_docs.py
+
+format:
+	black ros2_ws/src/altinet/altinet
+
+lint:
+	ruff check ros2_ws/src/altinet/altinet
+
+mypy:
+	PYTHONPATH=$(PYTHONPATH) mypy ros2_ws/src/altinet/altinet
+
+test:
+	PYTHONPATH=$(PYTHONPATH) pytest

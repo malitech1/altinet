@@ -1,0 +1,16 @@
+{
+  "rooms": [
+    {
+      "room_id": "living_room",
+      "source": 0,
+      "fps": 20,
+      "frame_id": "living_room_camera"
+    },
+    {
+      "room_id": "kitchen",
+      "source": "rtsp://127.0.0.1:8554/kitchen",
+      "fps": 15,
+      "frame_id": "kitchen_camera"
+    }
+  ]
+}

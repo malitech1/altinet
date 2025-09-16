@@ -1,0 +1,5 @@
+{
+  "model_path": "assets/models/yolov8n.onnx",
+  "conf_thresh": 0.35,
+  "iou_thresh": 0.5
+}

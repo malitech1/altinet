@@ -1,0 +1,7 @@
+{
+  "forward_allowed": false,
+  "api_base": "http://localhost:8000/api",
+  "ws_url": null,
+  "auth_token": null,
+  "max_backoff_s": 30.0
+}

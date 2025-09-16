@@ -1,0 +1,36 @@
+"""Launch file for a single room pipeline."""
+
+from __future__ import annotations
+
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+
+def generate_launch_description() -> LaunchDescription:
+    room_id = LaunchConfiguration("room_id")
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("room_id", default_value="living_room"),
+            DeclareLaunchArgument("camera_config", default_value="config/cameras.yaml"),
+            Node(
+                package="altinet",
+                executable="camera_node",
+                name="camera_node",
+                parameters=[{"room_id": room_id, "source": 0, "fps": 20.0}],
+            ),
+            Node(
+                package="altinet",
+                executable="detector_node",
+                name="detector_node",
+                parameters=[{"room_id": room_id, "config": "config/yolo.yaml"}],
+            ),
+            Node(
+                package="altinet",
+                executable="tracker_node",
+                name="tracker_node",
+                parameters=["config/tracker.yaml"],
+            ),
+        ]
+    )

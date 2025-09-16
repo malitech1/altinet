@@ -1,39 +1,36 @@
 # Altinet Architecture
 
-This repository contains the initial skeleton for the Altinet system. The structure is intended to
-serve as a foundation for future development and includes placeholders for core modules and
-services.
+The repository is structured around a ROS 2 workspace hosting the
+perception stack and a Django web application for dashboards.
 
 ```
 altinet/
-├── docs/                  # Project documentation
-├── src/
-│   └── altinet/           # ROS 2 package
-│       ├── package.xml    # Package manifest
-│       ├── setup.py       # ament package setup
-│       └── altinet/       # Application source code
-│           ├── core/      # Core networking components
-│           ├── services/  # High level services built on the core
-│           ├── utils/     # Shared utilities and helpers
-│           ├── localnode/ # Local Django node
-│           └── nodes/     # ROS 2 nodes
-└── tests/                 # Test suite
+├── ros2_ws/
+│   └── src/altinet/          # ROS 2 Python package
+│       ├── altinet/
+│       │   ├── nodes/        # ROS nodes (camera, detector, tracker, etc.)
+│       │   ├── utils/        # Geometry, models, tracking helpers
+│       │   ├── dashboards/   # Floorplan adapter utilities
+│       │   ├── config/       # YAML configuration samples
+│       │   ├── launch/       # Launch files
+│       │   ├── drivers/      # Hardware abstractions (lights)
+│       │   ├── msgs/, srv/   # ROS interface definitions
+│       │   └── tests/        # Pytest-based test suite
+│       ├── package.xml       # ROS package manifest
+│       └── setup.py          # ament_python entry point
+├── assets/
+│   ├── models/               # ONNX models
+│   └── calibration/          # Room calibration JSON/YAML
+├── docs/                     # Documentation, ADRs, API references
+└── web/                      # Django application (to be expanded)
 ```
 
-## Components
+Each ROS node exposes a pure-Python core component for unit testing and a
+thin ROS wrapper. Messages are defined in the `msgs/` directory with
+matching dataclasses used during tests when ROS interfaces are
+unavailable.
 
-- **core**: Low level networking primitives that power Altinet.
-- **services**: Higher level capabilities such as discovery and messaging built on top of the core.
-- **utils**: Shared helpers including cryptographic utilities.
-- **localnode**: A minimal Django application for running a local Altinet node
-  with a map editor and live view.
-- **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
-- **localnode**: A minimal Django application for running a local Altinet node.
-- **nodes**: ROS 2 nodes that expose Altinet functionality at runtime.
-  - `minimal_node`: placeholder node that logs a startup message.
-  - `camera_node`: publishes images from a camera device.
-  - `face_detector_node`: detects faces and publishes bounding boxes after a time-based confidence check.
-  - `face_identifier_node`: attempts to match faces against known identities.
-- **tests**: Unit tests that exercise the behavior of the system.
-
-Each module is currently a placeholder and should be expanded as the project grows.
+Use `colcon build` inside `ros2_ws` to build the package when running on
+a ROS-enabled machine. During development the Python modules can be
+loaded directly without compiling messages, though full runtime requires
+ROS message generation.

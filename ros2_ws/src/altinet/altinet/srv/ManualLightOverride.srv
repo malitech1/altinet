@@ -1,0 +1,5 @@
+string room_id
+bool state
+---
+bool success
+string message

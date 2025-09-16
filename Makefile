@@ -1,18 +1,32 @@
-PYTHONPATH := ros2_ws/src
+PYTHON ?= python
+DJANGO_MANAGE = $(PYTHON) backend/manage.py
 
-.PHONY: docs test lint format mypy
+.PHONY: setup run test lint format mypy seed docs
 
-docs:
-	PYTHONPATH=$(PYTHONPATH) python scripts/generate_api_docs.py
+setup:
+$(PYTHON) -m pip install -r requirements.txt
+@if [ -f frontend/package.json ]; then cd frontend && npm install; fi
 
-format:
-	black ros2_ws/src/altinet/altinet
-
-lint:
-	ruff check ros2_ws/src/altinet/altinet
-
-mypy:
-	PYTHONPATH=$(PYTHONPATH) mypy ros2_ws/src/altinet/altinet
+run:
+$(DJANGO_MANAGE) migrate
+$(DJANGO_MANAGE) runserver 0.0.0.0:8000
 
 test:
-	PYTHONPATH=$(PYTHONPATH) pytest
+pytest
+
+lint:
+flake8 backend
+@if [ -d frontend ]; then cd frontend && npm run lint --if-present; fi
+
+format:
+black backend
+isort backend
+
+mypy:
+mypy backend
+
+seed:
+$(DJANGO_MANAGE) loaddata backend/spaces/fixtures/demo_spaces.json
+
+docs:
+$(DJANGO_MANAGE) spectacular --format openapi-json --output docs/api/schema.json

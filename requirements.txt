@@ -1,21 +1,21 @@
 numpy>=1.24
-# The following dependencies are required for full ROS runtime but
-# should be installed manually in environments with network access:
-# opencv-python>=4.8
-# onnxruntime>=1.16
-# pyyaml>=6.0
-# scipy>=1.10
-# requests>=2.31
-# websocket-client>=1.6
-# tenacity>=8.2
-# pydantic>=1.10
-# Django>=4.2
-# channels>=4.0
-# asgiref>=3.7
-# uvicorn>=0.23
-# black>=23.12
-# ruff>=0.1.6
-# mypy>=1.6
-# pytest>=7.4
-# pytest-asyncio>=0.21
-# pytest-cov>=4.1
+Django>=4.2,<5.0
+djangorestframework>=3.14
+django-filter>=23.5
+drf-spectacular>=0.26.5
+channels>=4.0
+daphne>=4.0
+asgiref>=3.7
+httpx>=0.25
+cryptography>=41.0
+psycopg2-binary>=2.9
+pytest>=7.4
+pytest-django>=4.5
+pytest-asyncio>=0.21
+pytest-playwright>=0.4.0
+black>=23.12
+isort>=5.12
+flake8>=6.1
+mypy>=1.6
+types-requests
+types-python-dateutil

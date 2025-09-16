@@ -1,0 +1,140 @@
+[
+  {
+    "model": "spaces.room",
+    "pk": "11111111-1111-1111-1111-111111111111",
+    "fields": {
+      "name": "Bedroom",
+      "level": 1,
+      "origin_x_mm": 0,
+      "origin_y_mm": 0,
+      "rotation_deg": 0,
+      "polygon_mm": [
+        {"x_mm": 0, "y_mm": 0},
+        {"x_mm": 3500, "y_mm": 0},
+        {"x_mm": 3500, "y_mm": 3000},
+        {"x_mm": 0, "y_mm": 3000},
+        {"x_mm": 0, "y_mm": 0}
+      ],
+      "ceiling_height_mm": 2500,
+      "metadata": {"tags": ["sleep"]}
+    }
+  },
+  {
+    "model": "spaces.room",
+    "pk": "22222222-2222-2222-2222-222222222222",
+    "fields": {
+      "name": "Kitchen",
+      "level": 1,
+      "origin_x_mm": 0,
+      "origin_y_mm": 0,
+      "rotation_deg": 0,
+      "polygon_mm": [
+        {"x_mm": 0, "y_mm": 0},
+        {"x_mm": 4000, "y_mm": 0},
+        {"x_mm": 4000, "y_mm": 3500},
+        {"x_mm": 0, "y_mm": 3500},
+        {"x_mm": 0, "y_mm": 0}
+      ],
+      "ceiling_height_mm": 2550,
+      "metadata": {"tags": ["cook"]}
+    }
+  },
+  {
+    "model": "spaces.room",
+    "pk": "33333333-3333-3333-3333-333333333333",
+    "fields": {
+      "name": "Living",
+      "level": 1,
+      "origin_x_mm": 0,
+      "origin_y_mm": 0,
+      "rotation_deg": 0,
+      "polygon_mm": [
+        {"x_mm": 0, "y_mm": 0},
+        {"x_mm": 5500, "y_mm": 0},
+        {"x_mm": 5500, "y_mm": 4200},
+        {"x_mm": 0, "y_mm": 4200},
+        {"x_mm": 0, "y_mm": 0}
+      ],
+      "ceiling_height_mm": 2600,
+      "metadata": {"tags": ["family"]}
+    }
+  },
+  {
+    "model": "spaces.camera",
+    "pk": "44444444-4444-4444-4444-444444444444",
+    "fields": {
+      "name": "Bedroom Corner",
+      "room": "11111111-1111-1111-1111-111111111111",
+      "make": "Reolink",
+      "model": "510A",
+      "rtsp_url": "",
+      "is_rtsp_encrypted": false,
+      "webrtc_url": null,
+      "resolution_w": 2560,
+      "resolution_h": 1920,
+      "fps": 15,
+      "fov_deg": 90,
+      "position_mm": {"x_mm": 200, "y_mm": 200, "z_mm": 2500},
+      "yaw_deg": 45,
+      "pitch_deg": -10,
+      "roll_deg": 0,
+      "intrinsics": null,
+      "calibration_state": "UNSET",
+      "last_health": "UNKNOWN",
+      "last_seen_at": null,
+      "metadata": {"range_mm": 8000}
+    }
+  },
+  {
+    "model": "spaces.camera",
+    "pk": "55555555-5555-5555-5555-555555555555",
+    "fields": {
+      "name": "Kitchen Cam",
+      "room": "22222222-2222-2222-2222-222222222222",
+      "make": "Reolink",
+      "model": "510A",
+      "rtsp_url": "",
+      "is_rtsp_encrypted": false,
+      "webrtc_url": null,
+      "resolution_w": 2560,
+      "resolution_h": 1920,
+      "fps": 15,
+      "fov_deg": 95,
+      "position_mm": {"x_mm": 200, "y_mm": 3300, "z_mm": 2500},
+      "yaw_deg": 135,
+      "pitch_deg": -12,
+      "roll_deg": 0,
+      "intrinsics": null,
+      "calibration_state": "UNSET",
+      "last_health": "UNKNOWN",
+      "last_seen_at": null,
+      "metadata": {"range_mm": 8000}
+    }
+  },
+  {
+    "model": "spaces.camera",
+    "pk": "66666666-6666-6666-6666-666666666666",
+    "fields": {
+      "name": "Living Cam",
+      "room": "33333333-3333-3333-3333-333333333333",
+      "make": "Reolink",
+      "model": "810A",
+      "rtsp_url": "",
+      "is_rtsp_encrypted": false,
+      "webrtc_url": null,
+      "resolution_w": 3840,
+      "resolution_h": 2160,
+      "fps": 20,
+      "fov_deg": 100,
+      "position_mm": {"x_mm": 5400, "y_mm": 200, "z_mm": 2500},
+      "yaw_deg": -135,
+      "pitch_deg": -15,
+      "roll_deg": 0,
+      "intrinsics": null,
+      "calibration_state": "UNSET",
+      "last_health": "UNKNOWN",
+      "last_seen_at": null,
+      "metadata": {"range_mm": 8000}
+    }
+  }
+]

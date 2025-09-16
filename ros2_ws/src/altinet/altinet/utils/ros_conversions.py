@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, Optional
 
 from .types import Detection, Event, RoomPresence, Track
 
+_ROS_IMPORT_ERROR: Optional[Exception] = None
 try:  # pragma: no cover - optional at test time
     from std_msgs.msg import Header
     from altinet.msg import (
@@ -17,7 +18,8 @@ try:  # pragma: no cover - optional at test time
         RoomPresence as RoomPresenceMsg,
     )
     from altinet.srv import ManualLightOverride
-except Exception:  # pragma: no cover - executed when ROS not available
+except ImportError as exc:  # pragma: no cover - executed when ROS not available
+    _ROS_IMPORT_ERROR = exc
     Header = EventMsg = PersonDetectionMsg = PersonDetectionsMsg = PersonTrackMsg = (
         PersonTracksMsg
     ) = RoomPresenceMsg = ManualLightOverride = None
@@ -27,7 +29,10 @@ def detections_to_msg(detections: Iterable[Detection], header) -> PersonDetectio
     """Convert detections to a ROS message."""
 
     if PersonDetectionsMsg is None:
-        raise RuntimeError("ROS messages are not available in this environment")
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     detections = list(detections)
     msg = PersonDetectionsMsg()
     msg.header = header
@@ -38,7 +43,10 @@ def detections_to_msg(detections: Iterable[Detection], header) -> PersonDetectio
 
 def single_detection_to_msg(detection: Detection, header) -> PersonDetectionMsg:
     if PersonDetectionMsg is None:
-        raise RuntimeError("ROS messages are not available in this environment")
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     msg = PersonDetectionMsg()
     msg.header = Header()
     msg.header.stamp = header.stamp
@@ -55,7 +63,10 @@ def single_detection_to_msg(detection: Detection, header) -> PersonDetectionMsg:
 
 def tracks_to_msg(tracks: Iterable[Track], header) -> PersonTracksMsg:
     if PersonTracksMsg is None:
-        raise RuntimeError("ROS messages are not available in this environment")
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     tracks = list(tracks)
     msg = PersonTracksMsg()
     msg.header = header
@@ -66,7 +77,10 @@ def tracks_to_msg(tracks: Iterable[Track], header) -> PersonTracksMsg:
 
 def single_track_to_msg(track: Track, header) -> PersonTrackMsg:
     if PersonTrackMsg is None:
-        raise RuntimeError("ROS messages are not available in this environment")
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     msg = PersonTrackMsg()
     msg.header = Header()
     msg.header.stamp = header.stamp
@@ -85,7 +99,10 @@ def single_track_to_msg(track: Track, header) -> PersonTrackMsg:
 
 def presence_to_msg(presence: RoomPresence, header) -> RoomPresenceMsg:
     if RoomPresenceMsg is None:
-        raise RuntimeError("ROS messages are not available in this environment")
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     msg = RoomPresenceMsg()
     msg.header = Header()
     msg.header.stamp = header.stamp
@@ -98,7 +115,10 @@ def presence_to_msg(presence: RoomPresence, header) -> RoomPresenceMsg:
 
 def event_to_msg(event: Event, header) -> EventMsg:
     if EventMsg is None:
-        raise RuntimeError("ROS messages are not available in this environment")
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     msg = EventMsg()
     msg.header = Header()
     msg.header.stamp = header.stamp

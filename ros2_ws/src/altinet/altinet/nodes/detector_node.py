@@ -6,10 +6,11 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Deque, List
+from typing import Deque, List, Optional
 
 import numpy as np
 
+_ROS_IMPORT_ERROR: Optional[Exception] = None
 try:  # pragma: no cover - optional when ROS is unavailable
     import rclpy
     from rclpy.node import Node
@@ -17,7 +18,8 @@ try:  # pragma: no cover - optional when ROS is unavailable
     from std_msgs.msg import Header
     from cv_bridge import CvBridge
     from altinet.msg import PersonDetections as PersonDetectionsMsg
-except Exception:  # pragma: no cover - executed during tests
+except ImportError as exc:  # pragma: no cover - executed during tests
+    _ROS_IMPORT_ERROR = exc
     rclpy = None
     Node = object  # type: ignore
     Image = Header = CvBridge = PersonDetectionsMsg = None
@@ -108,7 +110,10 @@ __all__ = ["DetectorPipeline", "DetectorNode", "load_config"]
 
 def main(args=None):  # pragma: no cover - requires ROS runtime
     if rclpy is None:
-        raise RuntimeError("ROS 2 is not available in this environment")
+        message = "ROS 2 dependencies could not be imported"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
     rclpy.init(args=args)
     node = DetectorNode()
     try:

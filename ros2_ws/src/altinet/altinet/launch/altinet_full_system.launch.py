@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description() -> LaunchDescription:
     room_id = LaunchConfiguration("room_id")
+    altinet_share = FindPackageShare("altinet")
     return LaunchDescription(
         [
             DeclareLaunchArgument("room_id", default_value="living_room"),
@@ -23,19 +25,30 @@ def generate_launch_description() -> LaunchDescription:
                 package="altinet",
                 executable="detector_node",
                 name="detector_node",
-                parameters=[{"room_id": room_id, "config": "config/yolo.yaml"}],
+                parameters=[
+                    {
+                        "room_id": room_id,
+                        "config": PathJoinSubstitution(
+                            [altinet_share, "config", "yolo.yaml"]
+                        ),
+                    }
+                ],
             ),
             Node(
                 package="altinet",
                 executable="tracker_node",
                 name="tracker_node",
-                parameters=["config/tracker.yaml"],
+                parameters=[
+                    PathJoinSubstitution([altinet_share, "config", "tracker.yaml"])
+                ],
             ),
             Node(
                 package="altinet",
                 executable="event_manager_node",
                 name="event_manager_node",
-                parameters=["config/event_rules.yaml"],
+                parameters=[
+                    PathJoinSubstitution([altinet_share, "config", "event_rules.yaml"])
+                ],
             ),
             Node(
                 package="altinet",
@@ -47,7 +60,13 @@ def generate_launch_description() -> LaunchDescription:
                 package="altinet",
                 executable="ros2_django_bridge_node",
                 name="ros2_django_bridge_node",
-                parameters=[{"privacy_config": "config/privacy.yaml"}],
+                parameters=[
+                    {
+                        "privacy_config": PathJoinSubstitution(
+                            [altinet_share, "config", "privacy.yaml"]
+                        )
+                    }
+                ],
             ),
         ]
     )

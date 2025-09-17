@@ -3,6 +3,8 @@ project(altinet_interfaces)
 
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
 
 set(msg_files
   "msg/Event.msg"

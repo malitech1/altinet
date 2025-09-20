@@ -218,6 +218,7 @@ setup(
             'event_manager_node = altinet.nodes.event_manager_node:main',
             'lighting_control_node = altinet.nodes.lighting_control_node:main',
             'ros2_django_bridge_node = altinet.nodes.ros2_django_bridge_node:main',
+            'visualizer_node = altinet.nodes.visualizer_node:main',
         ],
     },
 )

@@ -44,6 +44,12 @@ def generate_launch_description() -> LaunchDescription:
             ),
             Node(
                 package="altinet",
+                executable="visualizer_node",
+                name="visualizer_node",
+                parameters=[{"room_id": room_id}],
+            ),
+            Node(
+                package="altinet",
                 executable="event_manager_node",
                 name="event_manager_node",
                 parameters=[

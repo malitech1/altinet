@@ -15,3 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Privacy-aware bridge with HTTP/WebSocket transports and offline queue.
 - Launch files, sample configs, unit tests, ADR and comprehensive docs.
 - GitHub Actions workflow running linting, typing, tests and doc generation.
+
+### Changed
+- Reworked the Altinet interfaces package to use the `ament_python` build type.

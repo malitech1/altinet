@@ -10,6 +10,7 @@ import cv2
 
 from altinet.nodes.detector_node import DetectorPipeline, load_config
 from altinet.nodes.tracker_node import TrackerPipeline
+from altinet.utils.config import default_yolo_config_path
 from altinet.utils.models import YoloV8Detector
 
 
@@ -36,7 +37,12 @@ def run_demo(video_path: Path, config_path: Path, room_id: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("video", type=Path, help="Path to a demo video file")
-    parser.add_argument("--config", type=Path, default=Path("config/yolo.yaml"), help="YOLO config path")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=default_yolo_config_path(),
+        help="YOLO config path",
+    )
     parser.add_argument("--room", default="demo_room", help="Room identifier")
     args = parser.parse_args()
     run_demo(args.video, args.config, args.room)

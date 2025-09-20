@@ -213,6 +213,7 @@ setup(
     entry_points={
         'console_scripts': [
             'camera_node = altinet.nodes.camera_node:main',
+            'camera_viewer_node = altinet.nodes.camera_viewer_node:main',
             'detector_node = altinet.nodes.detector_node:main',
             'tracker_node = altinet.nodes.tracker_node:main',
             'event_manager_node = altinet.nodes.event_manager_node:main',

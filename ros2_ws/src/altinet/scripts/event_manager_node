@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Wrapper executable for the event manager node."""
+
+from altinet.nodes.event_manager_node import main
+
+
+if __name__ == "__main__":
+    main()

@@ -12,9 +12,20 @@ from setuptools.command.develop import develop as _DevelopCommand
 # chance to handle it.  Strip the compatibility flag from ``sys.argv`` so the
 # command parser can continue normally.  The flag is still honoured by the
 # custom develop command below.
-for editable_flag in ('--editable', '-e'):
-    if editable_flag in sys.argv:
-        sys.argv.remove(editable_flag)
+def _strip_editable_flags(argv):
+    """Return ``argv`` without any variant of the ``--editable`` flag."""
+
+    sanitized = []
+    for arg in argv:
+        if arg in ('--editable', '-e'):
+            continue
+        if arg.startswith('--editable='):
+            continue
+        sanitized.append(arg)
+    return sanitized
+
+
+sys.argv[:] = _strip_editable_flags(sys.argv)
 
 
 class DevelopCommand(_DevelopCommand):

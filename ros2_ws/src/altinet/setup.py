@@ -1,8 +1,20 @@
+import sys
 from glob import glob
 from pathlib import Path
 
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop as _DevelopCommand
+
+
+# ``colcon`` forwards the ``--editable`` flag as a *global* option when invoking
+# ``setup.py``.  ``setuptools`` does not recognise this global option which
+# results in an early failure before our custom ``develop`` command gets a
+# chance to handle it.  Strip the compatibility flag from ``sys.argv`` so the
+# command parser can continue normally.  The flag is still honoured by the
+# custom develop command below.
+for editable_flag in ('--editable', '-e'):
+    if editable_flag in sys.argv:
+        sys.argv.remove(editable_flag)
 
 
 class DevelopCommand(_DevelopCommand):

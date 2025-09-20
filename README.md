@@ -49,12 +49,14 @@ Django backend for dashboards and historical analysis.
    Or run individual nodes for debugging:
 
    ```bash
-   ros2 run altinet detector_node --ros-args -p room_id:=living_room -p config:=config/yolo.yaml
-   ros2 run altinet tracker_node
-   ros2 run altinet event_manager_node --ros-args -p presence_timeout_s:=3.0
-   ros2 run altinet lighting_control_node --ros-args -p cooldown_s:=15.0
-   ros2 run altinet ros2_django_bridge_node --ros-args -p privacy_config:=config/privacy.yaml
-   ```
+  ros2 run altinet detector_node --ros-args -p room_id:=living_room
+  ros2 run altinet tracker_node
+  ros2 run altinet event_manager_node --ros-args -p presence_timeout_s:=3.0
+  ros2 run altinet lighting_control_node --ros-args -p cooldown_s:=15.0
+  ros2 run altinet ros2_django_bridge_node --ros-args -p privacy_config:=config/privacy.yaml
+  ```
+
+  The detector node automatically loads the packaged YOLO configuration. Override the path with ``-p config:=/custom/path.yaml`` if you need a different model setup.
 
 4. Regenerate documentation:
 

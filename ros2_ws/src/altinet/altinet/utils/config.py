@@ -6,6 +6,9 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+
 try:  # pragma: no cover - optional dependency
     import yaml
 except ImportError:  # pragma: no cover - executed when PyYAML unavailable
@@ -50,4 +53,16 @@ def _coerce_value(value: str) -> Any:
         return value
 
 
-__all__ = ["load_file"]
+def package_config_path(*relative: str) -> Path:
+    """Return an absolute path inside the package ``config`` directory."""
+
+    return _PACKAGE_ROOT.joinpath("config", *relative)
+
+
+def default_yolo_config_path() -> Path:
+    """Return the packaged default YOLO configuration path."""
+
+    return package_config_path("yolo.yaml")
+
+
+__all__ = ["load_file", "package_config_path", "default_yolo_config_path"]

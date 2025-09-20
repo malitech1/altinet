@@ -24,7 +24,7 @@ except ImportError as exc:  # pragma: no cover - executed during tests
     Node = object  # type: ignore
     Image = Header = CvBridge = PersonDetectionsMsg = None
 
-from ..utils.config import load_file
+from ..utils.config import default_yolo_config_path, load_file
 from ..utils.models import YoloConfig, YoloV8Detector
 from ..utils.ros_conversions import detections_to_msg
 from ..utils.types import Detection
@@ -75,7 +75,8 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
 
     def __init__(self) -> None:
         super().__init__("detector_node")
-        self.declare_parameter("config", str(Path("config/yolo.yaml")))
+        default_config = default_yolo_config_path()
+        self.declare_parameter("config", str(default_config))
         self.declare_parameter("room_id", "room_1")
         config_path = Path(self.get_parameter("config").value)
         room_id = str(self.get_parameter("room_id").value)

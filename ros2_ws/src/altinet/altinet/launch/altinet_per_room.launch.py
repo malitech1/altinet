@@ -7,9 +7,12 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
+from altinet.utils.config import default_yolo_config_path
+
 
 def generate_launch_description() -> LaunchDescription:
     room_id = LaunchConfiguration("room_id")
+    default_config = str(default_yolo_config_path())
     return LaunchDescription(
         [
             DeclareLaunchArgument("room_id", default_value="living_room"),
@@ -24,7 +27,7 @@ def generate_launch_description() -> LaunchDescription:
                 package="altinet",
                 executable="detector_node",
                 name="detector_node",
-                parameters=[{"room_id": room_id, "config": "config/yolo.yaml"}],
+                parameters=[{"room_id": room_id, "config": default_config}],
             ),
             Node(
                 package="altinet",

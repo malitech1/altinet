@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Wrapper executable for the ROS 2 to Django bridge node."""
+
+from altinet.nodes.ros2_django_bridge_node import main
+
+
+if __name__ == "__main__":
+    main()

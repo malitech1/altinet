@@ -35,5 +35,11 @@ def generate_launch_description() -> LaunchDescription:
                 name="tracker_node",
                 parameters=["config/tracker.yaml"],
             ),
+            Node(
+                package="altinet",
+                executable="visualizer_node",
+                name="visualizer_node",
+                parameters=[{"room_id": room_id}],
+            ),
         ]
     )

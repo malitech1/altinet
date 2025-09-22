@@ -84,6 +84,7 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         self.pipeline = DetectorPipeline(YoloV8Detector(config))
         self.room_id = room_id
         self.bridge = CvBridge()
+        self._connection_logged = False
         self.subscription = self.create_subscription(
             Image,
             f"/altinet/camera/{room_id}",
@@ -95,6 +96,13 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         )
 
     def _on_image(self, msg: Image) -> None:
+        if not self._connection_logged:
+            self.get_logger().info(
+                "Established connection to camera feed for room '%s'. "
+                "Monitoring frames for people.",
+                self.room_id,
+            )
+            self._connection_logged = True
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         timestamp = datetime.utcnow()
         detections = self.pipeline.process(

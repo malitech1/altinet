@@ -83,7 +83,7 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         self.declare_parameter("tracks_topic", "/altinet/person_tracks")
         self.declare_parameter("draw_detections", True)
         self.declare_parameter("draw_tracks", True)
-        self.declare_parameter("timestamp_tolerance", 0.2)
+        self.declare_parameter("timestamp_tolerance", 1.0)
         self.declare_parameter("display_window", True)
         self.declare_parameter("window_name", "")
         self.declare_parameter("wait_key_delay_ms", 1)
@@ -114,10 +114,13 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
 
         tolerance_param = self.get_parameter("timestamp_tolerance").value
         try:
-            tolerance = max(float(tolerance_param), 0.0)
+            tolerance = float(tolerance_param)
         except (TypeError, ValueError):
-            tolerance = 0.2
-        self._timestamp_tolerance_ns = int(tolerance * 1e9)
+            tolerance = 1.0
+        if tolerance <= 0.0:
+            self._timestamp_tolerance_ns = None
+        else:
+            self._timestamp_tolerance_ns = int(tolerance * 1e9)
 
         self._bridge = CvBridge()
         self._annotated_publisher = self.create_publisher(
@@ -269,6 +272,8 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         stamp: Optional[Time],
         image_stamp: Time,
     ) -> List[_T]:
+        if self._timestamp_tolerance_ns is None:
+            return list(entities)
         if stamp is None:
             return []
         delta_ns = int((image_stamp - stamp).nanoseconds)

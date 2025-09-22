@@ -150,11 +150,18 @@ def _scale_box(
     w /= ratio
     h /= ratio
 
+    orig_height = float(original_shape[0])
+    orig_width = float(original_shape[1])
+
     x1 = max(cx - w / 2.0, 0.0)
     y1 = max(cy - h / 2.0, 0.0)
-    x2 = min(cx + w / 2.0, float(original_shape[1]))
-    y2 = min(cy + h / 2.0, float(original_shape[0]))
-    return x1, y1, x2 - x1, y2 - y1
+    x2 = min(max(cx + w / 2.0, 0.0), orig_width)
+    y2 = min(max(cy + h / 2.0, 0.0), orig_height)
+
+    width = max(x2 - x1, 0.0)
+    height = max(y2 - y1, 0.0)
+
+    return x1, y1, width, height
 
 
 def _nms(boxes: List[BoundingBox], scores: List[float], iou_thresh: float) -> List[int]:

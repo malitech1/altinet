@@ -201,10 +201,9 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
                 boxes.append(
                     f"(x1={x1}, y1={y1}, x2={x2}, y2={y2})"
                 )
+            boxes_description = "; ".join(boxes)
             self.get_logger().info(
-                "Received %d person detections with bounding boxes: %s",
-                len(boxes),
-                "; ".join(boxes),
+                f"Received {len(boxes)} person detections with bounding boxes: {boxes_description}"
             )
 
     def _on_tracks(self, msg: PersonTracksMsg) -> None:

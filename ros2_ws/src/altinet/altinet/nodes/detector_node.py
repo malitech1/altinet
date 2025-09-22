@@ -100,6 +100,20 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         detections = self.pipeline.process(
             frame, self.room_id, msg.header.frame_id, timestamp
         )
+        if detections:
+            for detection in detections:
+                bbox = detection.bbox
+                self.get_logger().info(
+                    "Detected person in room '%s' (frame '%s') at "
+                    "x=%.1f, y=%.1f, w=%.1f, h=%.1f with confidence %.2f",
+                    detection.room_id,
+                    detection.frame_id,
+                    bbox.x,
+                    bbox.y,
+                    bbox.w,
+                    bbox.h,
+                    detection.confidence,
+                )
         header = Header()
         header.stamp = msg.header.stamp
         header.frame_id = msg.header.frame_id

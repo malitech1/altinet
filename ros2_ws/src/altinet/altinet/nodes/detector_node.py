@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from collections import deque
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Deque, List, Optional
 
@@ -18,11 +19,12 @@ try:  # pragma: no cover - optional when ROS is unavailable
     from std_msgs.msg import Header
     from cv_bridge import CvBridge
     from altinet.msg import PersonDetections as PersonDetectionsMsg
+    from altinet.srv import CheckPersonIdentity
 except ImportError as exc:  # pragma: no cover - executed during tests
     _ROS_IMPORT_ERROR = exc
     rclpy = None
     Node = object  # type: ignore
-    Image = Header = CvBridge = PersonDetectionsMsg = None
+    Image = Header = CvBridge = PersonDetectionsMsg = CheckPersonIdentity = None
 
 from ..utils.config import default_yolo_config_path, load_file
 from ..utils.models import YoloConfig, YoloV8Detector
@@ -78,6 +80,8 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         default_config = default_yolo_config_path()
         self.declare_parameter("config", str(default_config))
         self.declare_parameter("room_id", "room_1")
+        self.declare_parameter("identity_service_enabled", True)
+        self.declare_parameter("identity_service_timeout", 0.25)
         config_path = Path(self.get_parameter("config").value)
         room_id = str(self.get_parameter("room_id").value)
         config = load_config(config_path)
@@ -94,6 +98,26 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         self.publisher = self.create_publisher(
             PersonDetectionsMsg, "/altinet/person_detections", 10
         )
+
+        self.identity_client = None
+        self._identity_warned = False
+        if (
+            CheckPersonIdentity is not None
+            and bool(self.get_parameter("identity_service_enabled").value)
+        ):
+            self.identity_client = self.create_client(
+                CheckPersonIdentity, "/altinet/check_person_identity"
+            )
+            timeout = float(
+                self.get_parameter("identity_service_timeout").value
+            )
+            if timeout > 0.0 and not self.identity_client.wait_for_service(
+                timeout_sec=timeout
+            ):
+                self.get_logger().warn(
+                    "Identity service '/altinet/check_person_identity' "
+                    "not available yet; will retry in the background"
+                )
 
     def _on_image(self, msg: Image) -> None:
         if not self._connection_logged:
@@ -116,10 +140,62 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
                     f"x={bbox.x:.1f}, y={bbox.y:.1f}, w={bbox.w:.1f}, h={bbox.h:.1f} "
                     f"with confidence {detection.confidence:.2f}"
                 )
+                self._request_identity_check(detection)
         header = Header()
         header.stamp = msg.header.stamp
         header.frame_id = msg.header.frame_id
         self.publisher.publish(detections_to_msg(detections, header))
+
+    def _request_identity_check(self, detection: Detection) -> None:
+        if self.identity_client is None:
+            return
+        if not self.identity_client.service_is_ready():
+            if not self._identity_warned:
+                self.get_logger().warn(
+                    "Identity service unavailable; skipping person classification"
+                )
+                self._identity_warned = True
+            return
+        if self._identity_warned:
+            self.get_logger().info(
+                "Identity service available; resuming classification requests"
+            )
+            self._identity_warned = False
+
+        request = CheckPersonIdentity.Request()
+        request.track_id = -1
+        request.x = float(detection.bbox.x)
+        request.y = float(detection.bbox.y)
+        request.w = float(detection.bbox.w)
+        request.h = float(detection.bbox.h)
+        request.detection_confidence = float(detection.confidence)
+        request.room_id = detection.room_id
+        request.frame_id = detection.frame_id
+        image_height, image_width = detection.image_size
+        request.image_width = int(image_width)
+        request.image_height = int(image_height)
+
+        future = self.identity_client.call_async(request)
+        future.add_done_callback(partial(self._log_identity_result, detection=detection))
+
+    def _log_identity_result(self, future, detection: Detection) -> None:
+        try:
+            response = future.result()
+        except Exception as exc:  # pragma: no cover - logging best effort
+            self.get_logger().warn(
+                f"Identity classification failed for detection in room "
+                f"'{detection.room_id}': {exc}"
+            )
+            return
+
+        label = response.label or ("user" if response.is_user else "guest")
+        bbox = detection.bbox
+        message = (
+            f"Identity check for detection in room '{detection.room_id}' "
+            f"(frame '{detection.frame_id}') at x={bbox.x:.1f}, y={bbox.y:.1f} -> "
+            f"{label} (confidence {response.confidence:.2f}). {response.reason}"
+        )
+        self.get_logger().info(message)
 
 
 __all__ = ["DetectorPipeline", "DetectorNode", "load_config"]

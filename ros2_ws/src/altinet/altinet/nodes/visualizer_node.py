@@ -187,9 +187,25 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             return
         if Time is None:
             return
+        detections = list(msg.detections)
         with self._lock:
-            self._last_detections = list(msg.detections)
+            self._last_detections = detections
             self._detections_stamp = Time.from_msg(msg.header.stamp)
+        if detections:
+            boxes = []
+            for detection in detections:
+                x1 = int(round(detection.x))
+                y1 = int(round(detection.y))
+                x2 = int(round(detection.x + detection.w))
+                y2 = int(round(detection.y + detection.h))
+                boxes.append(
+                    f"(x1={x1}, y1={y1}, x2={x2}, y2={y2})"
+                )
+            self.get_logger().info(
+                "Received %d person detections with bounding boxes: %s",
+                len(boxes),
+                "; ".join(boxes),
+            )
 
     def _on_tracks(self, msg: PersonTracksMsg) -> None:
         if msg.room_id and msg.room_id != self.room_id:

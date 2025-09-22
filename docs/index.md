@@ -14,6 +14,7 @@
 graph LR
     A[Camera Node] --> B[Detector Node]
     B --> C[Tracker Node]
+    B --> G[Identity Service]
     C --> D[Event Manager]
     D --> E[Lighting Control]
     C --> F[ROS→Django Bridge]
@@ -24,6 +25,13 @@ graph LR
 
 `DetectorNode` loads YOLOv8n from `assets/models/yolov8n.onnx`, filters to
 person detections, and publishes `altinet/PersonDetections`.
+
+### Identity Service
+
+`IdentityNode` exposes `/altinet/check_person_identity`, using bounding box
+size and detector confidence to distinguish residents from guests. The
+detector queries the service asynchronously for each detection and logs the
+resolved identity alongside the bounding box coordinates.
 
 ### Tracker
 

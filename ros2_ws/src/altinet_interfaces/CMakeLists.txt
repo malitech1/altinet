@@ -16,6 +16,7 @@ set(msg_files
 
 set(srv_files
   "srv/ManualLightOverride.srv"
+  "srv/CheckPersonIdentity.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

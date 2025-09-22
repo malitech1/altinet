@@ -98,9 +98,8 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
     def _on_image(self, msg: Image) -> None:
         if not self._connection_logged:
             self.get_logger().info(
-                "Established connection to camera feed for room '%s'. "
-                "Monitoring frames for people.",
-                self.room_id,
+                f"Established connection to camera feed for room '{self.room_id}'. "
+                "Monitoring frames for people."
             )
             self._connection_logged = True
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
@@ -112,15 +111,10 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
             for detection in detections:
                 bbox = detection.bbox
                 self.get_logger().info(
-                    "Detected person in room '%s' (frame '%s') at "
-                    "x=%.1f, y=%.1f, w=%.1f, h=%.1f with confidence %.2f",
-                    detection.room_id,
-                    detection.frame_id,
-                    bbox.x,
-                    bbox.y,
-                    bbox.w,
-                    bbox.h,
-                    detection.confidence,
+                    f"Detected person in room '{detection.room_id}' "
+                    f"(frame '{detection.frame_id}') at "
+                    f"x={bbox.x:.1f}, y={bbox.y:.1f}, w={bbox.w:.1f}, h={bbox.h:.1f} "
+                    f"with confidence {detection.confidence:.2f}"
                 )
         header = Header()
         header.stamp = msg.header.stamp

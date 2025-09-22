@@ -34,6 +34,8 @@ except ImportError as exc:  # pragma: no cover - executed during tests
 BBox = Tuple[int, int, int, int]
 _T = TypeVar("_T")
 
+_SHUTDOWN_KEYS: Sequence[int] = (ord("q"), 27)  # letter q and escape key
+
 
 def _color_from_id(identifier: int) -> Tuple[int, int, int]:
     """Return a BGR colour tuple that is deterministic for ``identifier``."""
@@ -82,6 +84,9 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         self.declare_parameter("draw_detections", True)
         self.declare_parameter("draw_tracks", True)
         self.declare_parameter("timestamp_tolerance", 0.2)
+        self.declare_parameter("display_window", True)
+        self.declare_parameter("window_name", "")
+        self.declare_parameter("wait_key_delay_ms", 1)
 
         room_id_param = self.get_parameter("room_id").value
         self.room_id = str(room_id_param) if room_id_param is not None else "room_1"
@@ -105,6 +110,7 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
 
         self._draw_detections = bool(self.get_parameter("draw_detections").value)
         self._draw_tracks = bool(self.get_parameter("draw_tracks").value)
+        self._display_window = bool(self.get_parameter("display_window").value)
 
         tolerance_param = self.get_parameter("timestamp_tolerance").value
         try:
@@ -117,6 +123,25 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         self._annotated_publisher = self.create_publisher(
             Image, f"/altinet/visualizer/{self.room_id}/annotated", 10
         )
+
+        window_param = self.get_parameter("window_name").value
+        self._window_name = (
+            str(window_param)
+            if window_param
+            else f"Altinet Visualizer ({self.room_id})"
+        )
+        delay_param = self.get_parameter("wait_key_delay_ms").value
+        try:
+            self._wait_key_delay = max(int(delay_param), 1)
+        except (TypeError, ValueError):
+            self._wait_key_delay = 1
+
+        self._window_created = False
+        self._window_available = True
+        if self._display_window:
+            self.get_logger().info(
+                f"Displaying annotated frames in window '{self._window_name}'"
+            )
 
         self._lock = threading.Lock()
         self._last_detections: List[PersonDetectionMsg] = []
@@ -198,6 +223,45 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         annotated_msg = self._bridge.cv2_to_imgmsg(annotated, encoding="bgr8")
         annotated_msg.header = msg.header
         self._annotated_publisher.publish(annotated_msg)
+        if self._display_window:
+            self._show_annotated_image(annotated)
+
+    def _ensure_window(self) -> None:
+        if self._window_created or not self._window_available:
+            return
+        try:
+            cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
+            self._window_created = True
+        except cv2.error as exc:  # pragma: no cover - graphical back-end issues
+            self._window_available = False
+            self.get_logger().error(
+                "Unable to create OpenCV window '%s': %s", self._window_name, exc
+            )
+
+    def _show_annotated_image(self, image) -> None:
+        self._ensure_window()
+        if not self._window_available:
+            return
+        try:
+            cv2.imshow(self._window_name, image)
+            key = cv2.waitKey(self._wait_key_delay) & 0xFF
+        except cv2.error as exc:  # pragma: no cover - graphical back-end issues
+            self._window_available = False
+            self.get_logger().error(
+                "OpenCV error while displaying annotated frame: %s", exc
+            )
+            return
+        if key in _SHUTDOWN_KEYS and rclpy is not None:
+            self.get_logger().info("Shutdown requested from keyboard input")
+            rclpy.shutdown()
+
+    def destroy_node(self):  # pragma: no cover - requires ROS runtime
+        if self._display_window and cv2 is not None and self._window_created:
+            try:
+                cv2.destroyWindow(self._window_name)
+            except cv2.error:
+                pass
+        return super().destroy_node()
 
     def _filter_by_timestamp(
         self,

@@ -76,16 +76,17 @@ class YoloV8Detector:
             predictions = predictions.T
 
         boxes = predictions[:, :4]
-        scores = predictions[:, 4]
-        class_scores = predictions[:, 5:]
+        class_prob_matrix = predictions[:, 4:]
 
         detections: List[Detection] = []
         for idx in range(boxes.shape[0]):
-            cls_probs = class_scores[idx]
-            best_class = int(np.argmax(cls_probs))
+            class_probs = class_prob_matrix[idx]
+            if class_probs.size == 0:
+                continue
+            best_class = int(np.argmax(class_probs))
             if best_class not in self.config.class_ids:
                 continue
-            score = float(scores[idx] * cls_probs[best_class])
+            score = float(class_probs[best_class])
             if score < self.config.conf_thresh:
                 continue
             box = boxes[idx]

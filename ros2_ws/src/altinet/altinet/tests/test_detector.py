@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from altinet.nodes.detector_node import DetectorPipeline, load_config
+from altinet.utils.models import _scale_box
 from altinet.utils.types import BoundingBox, Detection
 
 
@@ -45,3 +46,15 @@ def test_load_config_reads_yaml(tmp_path):
     config = load_config(config_path)
     assert config.model_path == Path("assets/models/yolov8n.onnx")
     assert config.conf_thresh == 0.5
+
+
+def test_scale_box_clamps_boxes_outside_top_left():
+    box = np.array([-30.0, -20.0, 40.0, 60.0], dtype=np.float32)
+    scaled = _scale_box(box, ratio=1.0, padding=(0.0, 0.0), original_shape=(100, 200))
+    bbox = BoundingBox(*scaled)
+
+    assert bbox.x >= 0.0
+    assert bbox.y >= 0.0
+    assert bbox.w >= 0.0
+    assert bbox.h >= 0.0
+    assert bbox.w == 0.0

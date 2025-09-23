@@ -240,10 +240,13 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             tracks = self._filter_by_timestamp(tracks, tracks_stamp, image_stamp)
 
         annotated = frame.copy()
-        if self._draw_detections and detections:
-            self._draw_detection_boxes(annotated, detections, width, height)
+        drew_tracks = False
         if self._draw_tracks and tracks:
             self._draw_track_boxes(annotated, tracks, width, height)
+            drew_tracks = True
+        if self._draw_detections and detections and not drew_tracks:
+            # Fall back to raw detections only when no track is available.
+            self._draw_detection_boxes(annotated, detections, width, height)
 
         annotated_msg = self._bridge.cv2_to_imgmsg(annotated, encoding="bgr8")
         annotated_msg.header = msg.header

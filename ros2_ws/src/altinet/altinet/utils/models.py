@@ -32,6 +32,12 @@ class YoloConfig:
     providers: Optional[Sequence[str]] = None
 
 
+_CLOSE_RANGE_HEIGHT_RATIO = 0.6
+_CLOSE_RANGE_AREA_RATIO = 0.25
+_HEAD_HEIGHT_FRACTION = 0.45
+_HEAD_WIDTH_FRACTION = 0.6
+
+
 class YoloV8Detector:
     """Run YOLOv8 ONNX inference for person detection."""
 
@@ -98,7 +104,11 @@ class YoloV8Detector:
                 image.shape[:2],
                 input_shape=(self.input_height, self.input_width),
             )
-            scaled_boxes.append(BoundingBox(*scaled))
+            scaled_box = BoundingBox(*scaled)
+            adjusted_box = _focus_close_range_detection_on_head(
+                scaled_box, image.shape[:2]
+            )
+            scaled_boxes.append(adjusted_box)
             confidences.append(score)
 
         keep = _nms(scaled_boxes, confidences, self.config.iou_thresh)
@@ -175,6 +185,62 @@ def _scale_box(
     height = max(y2 - y1, 0.0)
 
     return x1, y1, width, height
+
+
+def _focus_close_range_detection_on_head(
+    box: BoundingBox, image_shape: Tuple[int, int]
+) -> BoundingBox:
+    """Return ``box`` cropped to the head when the person is very close.
+
+    The detector sometimes produces a full-body bounding box that occupies
+    most of the frame when a person approaches the camera. In that scenario we
+    shrink the box to the top portion so that downstream consumers receive a
+    tighter region around the head.
+    """
+
+    if box.w <= 0.0 or box.h <= 0.0:
+        return box
+
+    if len(image_shape) != 2:
+        return box
+
+    image_height, image_width = image_shape
+    if image_height <= 0 or image_width <= 0:
+        return box
+
+    image_height_f = float(image_height)
+    image_width_f = float(image_width)
+
+    height_ratio = box.h / image_height_f
+    area_ratio = (box.w * box.h) / (image_height_f * image_width_f)
+
+    if height_ratio <= _CLOSE_RANGE_HEIGHT_RATIO and area_ratio <= _CLOSE_RANGE_AREA_RATIO:
+        return box
+
+    head_height = max(
+        min(box.h * _HEAD_HEIGHT_FRACTION, image_height_f - box.y),
+        0.0,
+    )
+    if head_height <= 0.0:
+        return box
+
+    head_width = max(min(box.w * _HEAD_WIDTH_FRACTION, image_width_f), 0.0)
+    if head_width <= 0.0:
+        return BoundingBox(box.x, box.y, box.w, head_height)
+
+    center_x = box.x + box.w / 2.0
+    new_x = center_x - head_width / 2.0
+    max_x = image_width_f - head_width
+    if max_x < 0.0:
+        max_x = 0.0
+    new_x = min(max(new_x, 0.0), max_x)
+
+    max_y = image_height_f - head_height
+    if max_y < 0.0:
+        max_y = 0.0
+    new_y = min(max(box.y, 0.0), max_y)
+
+    return BoundingBox(new_x, new_y, head_width, head_height)
 
 
 def _nms(boxes: List[BoundingBox], scores: List[float], iou_thresh: float) -> List[int]:

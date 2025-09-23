@@ -56,6 +56,9 @@ def single_detection_to_msg(detection: Detection, header) -> PersonDetectionMsg:
     msg.w = detection.bbox.w
     msg.h = detection.bbox.h
     msg.conf = detection.confidence
+    image_height, image_width = detection.image_size
+    msg.image_width = int(image_width)
+    msg.image_height = int(image_height)
     msg.room_id = detection.room_id
     msg.frame_id = detection.frame_id
     return msg
@@ -93,6 +96,9 @@ def single_track_to_msg(track: Track, header) -> PersonTrackMsg:
     cx, cy = track.centroid()
     msg.cx = cx
     msg.cy = cy
+    image_height, image_width = track.image_size
+    msg.image_width = int(image_width)
+    msg.image_height = int(image_height)
     msg.room_id = track.room_id
     return msg
 

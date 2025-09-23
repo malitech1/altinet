@@ -63,13 +63,15 @@ class TrackerNode(Node):  # pragma: no cover - requires ROS runtime
         detections = []
         for det in msg.detections:
             bbox = (det.x, det.y, det.w, det.h)
+            image_height = int(getattr(det, "image_height", 0)) or 1
+            image_width = int(getattr(det, "image_width", 0)) or 1
             detection = Detection(
                 bbox=BoundingBox(*bbox),
                 confidence=det.conf,
                 room_id=msg.room_id,
                 frame_id=det.frame_id,
                 timestamp=datetime.utcnow(),
-                image_size=(1080, 1920),
+                image_size=(image_height, image_width),
             )
             detections.append(detection)
         tracks = self.pipeline.update(detections)

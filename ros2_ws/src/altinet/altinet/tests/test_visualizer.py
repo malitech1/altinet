@@ -26,12 +26,14 @@ class _FakeTime:
 
 def _filter(
     tolerance_ns: Optional[int],
+    grace_ns: Optional[int],
     entities: Sequence[Any],
     stamp: Optional[_FakeTime],
     image_stamp: _FakeTime,
 ):
     node = VisualizerNode.__new__(VisualizerNode)
     node._timestamp_tolerance_ns = tolerance_ns  # type: ignore[attr-defined]
+    node._stale_grace_period_ns = grace_ns  # type: ignore[attr-defined]
     return node._filter_by_timestamp(entities, stamp, image_stamp)
 
 
@@ -39,24 +41,32 @@ def test_filter_by_timestamp_accepts_within_tolerance():
     entities = [object()]
     stamp = _FakeTime(0.0)
     image_stamp = _FakeTime(1.0)  # 1 second later
-    result = _filter(int(1.5 * 1e9), entities, stamp, image_stamp)
-    assert result == list(entities)
+    result = _filter(int(1.5 * 1e9), int(2.0 * 1e9), entities, stamp, image_stamp)
+    assert result == (list(entities), [])
 
 
 def test_filter_by_timestamp_drops_stale_entities():
     entities = [object()]
     stamp = _FakeTime(0.0)
     image_stamp = _FakeTime(1.0)  # 1 second later
-    result = _filter(int(0.5 * 1e9), entities, stamp, image_stamp)
-    assert result == []
+    result = _filter(int(0.5 * 1e9), int(0.75 * 1e9), entities, stamp, image_stamp)
+    assert result == ([], [])
+
+
+def test_filter_by_timestamp_marks_entities_as_stale_within_grace():
+    entities = [object()]
+    stamp = _FakeTime(0.0)
+    image_stamp = _FakeTime(1.0)
+    result = _filter(int(0.5 * 1e9), int(1.5 * 1e9), entities, stamp, image_stamp)
+    assert result == ([], list(entities))
 
 
 def test_filter_by_timestamp_disables_filtering_for_non_positive():
     entities = [object()]
     stamp = _FakeTime(0.0)
     image_stamp = _FakeTime(10.0)
-    result = _filter(None, entities, stamp, image_stamp)
-    assert result == list(entities)
+    result = _filter(None, None, entities, stamp, image_stamp)
+    assert result == (list(entities), [])
     # Filtering disabled even when timestamp is unavailable
-    result_without_stamp = _filter(None, entities, None, image_stamp)
-    assert result_without_stamp == list(entities)
+    result_without_stamp = _filter(None, None, entities, None, image_stamp)
+    assert result_without_stamp == (list(entities), [])

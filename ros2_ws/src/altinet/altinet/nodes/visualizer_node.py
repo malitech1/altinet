@@ -85,6 +85,8 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         self.declare_parameter("draw_detections", True)
         self.declare_parameter("draw_tracks", True)
         self.declare_parameter("timestamp_tolerance", 1.0)
+        self.declare_parameter("stale_grace_period", 2.0)
+        self.declare_parameter("frame_process_interval", 0.5)
         self.declare_parameter("display_window", True)
         self.declare_parameter("window_name", "")
         self.declare_parameter("wait_key_delay_ms", 1)
@@ -122,6 +124,34 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             self._timestamp_tolerance_ns = None
         else:
             self._timestamp_tolerance_ns = int(tolerance * 1e9)
+
+        stale_param = self.get_parameter("stale_grace_period").value
+        try:
+            stale_period = float(stale_param)
+        except (TypeError, ValueError):
+            stale_period = tolerance
+        if stale_period <= 0.0:
+            if self._timestamp_tolerance_ns is None:
+                self._stale_grace_period_ns = None
+            else:
+                self._stale_grace_period_ns = self._timestamp_tolerance_ns
+        else:
+            self._stale_grace_period_ns = int(stale_period * 1e9)
+            if (
+                self._timestamp_tolerance_ns is not None
+                and self._stale_grace_period_ns < self._timestamp_tolerance_ns
+            ):
+                self._stale_grace_period_ns = self._timestamp_tolerance_ns
+
+        frame_interval_param = self.get_parameter("frame_process_interval").value
+        try:
+            frame_interval = float(frame_interval_param)
+        except (TypeError, ValueError):
+            frame_interval = 0.5
+        if frame_interval <= 0.0:
+            self._frame_process_interval_ns = None
+        else:
+            self._frame_process_interval_ns = int(frame_interval * 1e9)
 
         self._bridge = CvBridge()
         self._annotated_publisher = self.create_publisher(
@@ -181,9 +211,11 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             self._tracks_subscription = None
 
         self._detection_colour: Tuple[int, int, int] = (0, 0, 255)  # BGR red
+        self._stale_detection_colour: Tuple[int, int, int] = (0, 165, 255)  # BGR orange
         self._track_text_colour: Tuple[int, int, int] = (255, 255, 255)
-        self._frame_process_interval = 0.5  # seconds
-        self._last_frame_processed_at = 0.0
+        self._stale_track_colour: Tuple[int, int, int] = (160, 160, 160)  # muted grey
+        self._stale_track_text_colour: Tuple[int, int, int] = (200, 200, 200)
+        self._last_frame_processed_at_ns = 0
 
     def _on_detections(self, msg: PersonDetectionsMsg) -> None:
         if msg.room_id and msg.room_id != self.room_id:
@@ -219,10 +251,13 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             self._tracks_stamp = Time.from_msg(msg.header.stamp)
 
     def _on_image(self, msg: Image) -> None:
-        now = time.monotonic()
-        if now - self._last_frame_processed_at < self._frame_process_interval:
+        now_ns = time.monotonic_ns()
+        if (
+            self._frame_process_interval_ns is not None
+            and now_ns - self._last_frame_processed_at_ns < self._frame_process_interval_ns
+        ):
             return
-        self._last_frame_processed_at = now
+        self._last_frame_processed_at_ns = now_ns
         frame = self._bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         if frame is None:
             return
@@ -235,18 +270,51 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             tracks_stamp = self._tracks_stamp
 
         image_stamp = Time.from_msg(msg.header.stamp) if Time is not None else None
+        fresh_detections: List[PersonDetectionMsg]
+        stale_detections: List[PersonDetectionMsg]
+        fresh_tracks: List[PersonTrackMsg]
+        stale_tracks: List[PersonTrackMsg]
         if image_stamp is not None:
-            detections = self._filter_by_timestamp(detections, detection_stamp, image_stamp)
-            tracks = self._filter_by_timestamp(tracks, tracks_stamp, image_stamp)
+            fresh_detections, stale_detections = self._filter_by_timestamp(
+                detections, detection_stamp, image_stamp
+            )
+            fresh_tracks, stale_tracks = self._filter_by_timestamp(
+                tracks, tracks_stamp, image_stamp
+            )
+        else:
+            fresh_detections, stale_detections = list(detections), []
+            fresh_tracks, stale_tracks = list(tracks), []
 
         annotated = frame.copy()
         drew_tracks = False
-        if self._draw_tracks and tracks:
-            self._draw_track_boxes(annotated, tracks, width, height)
-            drew_tracks = True
-        if self._draw_detections and detections and not drew_tracks:
+        if self._draw_tracks:
+            if fresh_tracks:
+                self._draw_track_boxes(annotated, fresh_tracks, width, height)
+                drew_tracks = True
+            elif stale_tracks:
+                self._draw_track_boxes(
+                    annotated,
+                    stale_tracks,
+                    width,
+                    height,
+                    box_colour=self._stale_track_colour,
+                    thickness=1,
+                    text_colour=self._stale_track_text_colour,
+                )
+                drew_tracks = True
+        if self._draw_detections and not drew_tracks:
             # Fall back to raw detections only when no track is available.
-            self._draw_detection_boxes(annotated, detections, width, height)
+            if fresh_detections:
+                self._draw_detection_boxes(annotated, fresh_detections, width, height)
+            elif stale_detections:
+                self._draw_detection_boxes(
+                    annotated,
+                    stale_detections,
+                    width,
+                    height,
+                    box_colour=self._stale_detection_colour,
+                    thickness=2,
+                )
 
         annotated_msg = self._bridge.cv2_to_imgmsg(annotated, encoding="bgr8")
         annotated_msg.header = msg.header
@@ -296,17 +364,25 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         entities: Sequence[_T],
         stamp: Optional[Time],
         image_stamp: Time,
-    ) -> List[_T]:
+    ) -> Tuple[List[_T], List[_T]]:
+        if not entities:
+            return [], []
         if self._timestamp_tolerance_ns is None:
-            return list(entities)
+            return list(entities), []
         if stamp is None:
-            return []
+            return [], []
         delta_ns = int((image_stamp - stamp).nanoseconds)
         if delta_ns < 0:
             delta_ns = -delta_ns
-        if delta_ns > self._timestamp_tolerance_ns:
-            return []
-        return list(entities)
+        tolerance_ns = self._timestamp_tolerance_ns
+        grace_ns = self._stale_grace_period_ns
+        if grace_ns is None or grace_ns < tolerance_ns:
+            grace_ns = tolerance_ns
+        if delta_ns > grace_ns:
+            return [], []
+        if delta_ns <= tolerance_ns:
+            return list(entities), []
+        return [], list(entities)
 
     def _draw_detection_boxes(
         self,
@@ -314,7 +390,13 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         detections: Sequence[PersonDetectionMsg],
         width: int,
         height: int,
+        box_colour: Optional[Tuple[int, int, int]] = None,
+        thickness: Optional[int] = None,
+        text_colour: Optional[Tuple[int, int, int]] = None,
     ) -> None:
+        colour = box_colour if box_colour is not None else self._detection_colour
+        line_thickness = thickness if thickness is not None else 4
+        label_colour = text_colour if text_colour is not None else colour
         for detection in detections:
             bbox = _bbox_from_dimensions(
                 detection.x, detection.y, detection.w, detection.h, width, height
@@ -322,7 +404,7 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             if bbox is None:
                 continue
             x1, y1, x2, y2 = bbox
-            cv2.rectangle(image, (x1, y1), (x2, y2), self._detection_colour, 4)
+            cv2.rectangle(image, (x1, y1), (x2, y2), colour, line_thickness)
             label = f"{detection.conf:.2f}"
             cv2.putText(
                 image,
@@ -330,14 +412,23 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
                 (x1, max(y1 - 5, 0)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
-                self._detection_colour,
+                label_colour,
                 1,
                 cv2.LINE_AA,
             )
 
     def _draw_track_boxes(
-        self, image, tracks: Sequence[PersonTrackMsg], width: int, height: int
+        self,
+        image,
+        tracks: Sequence[PersonTrackMsg],
+        width: int,
+        height: int,
+        box_colour: Optional[Tuple[int, int, int]] = None,
+        thickness: Optional[int] = None,
+        text_colour: Optional[Tuple[int, int, int]] = None,
     ) -> None:
+        line_thickness = thickness if thickness is not None else 2
+        label_colour = text_colour if text_colour is not None else self._track_text_colour
         for track in tracks:
             bbox = _bbox_from_dimensions(
                 track.x, track.y, track.w, track.h, width, height
@@ -345,8 +436,8 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             if bbox is None:
                 continue
             x1, y1, x2, y2 = bbox
-            colour = _color_from_id(track.track_id)
-            cv2.rectangle(image, (x1, y1), (x2, y2), colour, 2)
+            colour = box_colour if box_colour is not None else _color_from_id(track.track_id)
+            cv2.rectangle(image, (x1, y1), (x2, y2), colour, line_thickness)
             label = f"ID {track.track_id}"
             cv2.putText(
                 image,
@@ -354,7 +445,7 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
                 (x1, min(y2 + 15, height - 1)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
-                self._track_text_colour,
+                label_colour,
                 1,
                 cv2.LINE_AA,
             )

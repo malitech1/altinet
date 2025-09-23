@@ -74,5 +74,10 @@ def generate_launch_description() -> LaunchDescription:
                     }
                 ],
             ),
+            Node(
+                package="altinet",
+                executable="identity_node",
+                name="identity_node",
+            ),
         ]
     )

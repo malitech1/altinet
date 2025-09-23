@@ -41,5 +41,10 @@ def generate_launch_description() -> LaunchDescription:
                 name="visualizer_node",
                 parameters=[{"room_id": room_id}],
             ),
+            Node(
+                package="altinet",
+                executable="identity_node",
+                name="identity_node",
+            ),
         ]
     )

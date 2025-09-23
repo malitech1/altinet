@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from typing import List, Optional, Sequence, Tuple, TypeVar
 
 try:  # pragma: no cover - optional dependency in tests
@@ -179,8 +180,10 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
         else:
             self._tracks_subscription = None
 
-        self._detection_colour: Tuple[int, int, int] = (0, 255, 255)  # BGR yellow
+        self._detection_colour: Tuple[int, int, int] = (0, 0, 255)  # BGR red
         self._track_text_colour: Tuple[int, int, int] = (255, 255, 255)
+        self._frame_process_interval = 0.5  # seconds
+        self._last_frame_processed_at = 0.0
 
     def _on_detections(self, msg: PersonDetectionsMsg) -> None:
         if msg.room_id and msg.room_id != self.room_id:
@@ -216,6 +219,10 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             self._tracks_stamp = Time.from_msg(msg.header.stamp)
 
     def _on_image(self, msg: Image) -> None:
+        now = time.monotonic()
+        if now - self._last_frame_processed_at < self._frame_process_interval:
+            return
+        self._last_frame_processed_at = now
         frame = self._bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         if frame is None:
             return
@@ -312,7 +319,7 @@ class VisualizerNode(Node):  # pragma: no cover - requires ROS runtime
             if bbox is None:
                 continue
             x1, y1, x2, y2 = bbox
-            cv2.rectangle(image, (x1, y1), (x2, y2), self._detection_colour, 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), self._detection_colour, 4)
             label = f"{detection.conf:.2f}"
             cv2.putText(
                 image,

@@ -13,7 +13,7 @@ def make_detection(x: float, y: float, timestamp: datetime) -> Detection:
         room_id="living_room",
         frame_id="cam",
         timestamp=timestamp,
-        image_size=(1080, 1920),
+        image_size=(720, 1280),
     )
 
 
@@ -24,6 +24,7 @@ def test_tracker_preserves_identity():
     tracks_frame1 = tracker.update(detections_frame1)
     assert len(tracks_frame1) == 1
     track_id = tracks_frame1[0].track_id
+    assert tracks_frame1[0].image_size == (720, 1280)
 
     detections_frame2 = [make_detection(12.0, 22.0, t0 + timedelta(milliseconds=33))]
     tracks_frame2 = tracker.update(detections_frame2)

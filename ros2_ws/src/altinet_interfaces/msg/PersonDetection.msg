@@ -4,5 +4,7 @@ float32 y
 float32 w
 float32 h
 float32 conf
+uint32 image_width
+uint32 image_height
 string room_id
 string frame_id

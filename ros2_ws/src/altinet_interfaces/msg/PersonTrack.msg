@@ -6,4 +6,6 @@ float32 w
 float32 h
 float32 cx
 float32 cy
+uint32 image_width
+uint32 image_height
 string room_id

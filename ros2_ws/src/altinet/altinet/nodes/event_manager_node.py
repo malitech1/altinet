@@ -177,13 +177,15 @@ class EventManagerNode(Node):  # pragma: no cover - requires ROS 2 runtime
         tracks = []
         for track_msg in msg.tracks:
             bbox = BoundingBox(track_msg.x, track_msg.y, track_msg.w, track_msg.h)
+            image_height = int(getattr(track_msg, "image_height", 0)) or 1
+            image_width = int(getattr(track_msg, "image_width", 0)) or 1
             track = Track(
                 track_id=track_msg.track_id,
                 bbox=bbox,
                 confidence=1.0,
                 room_id=msg.room_id,
                 timestamp=now,
-                image_size=(1080, 1920),
+                image_size=(image_height, image_width),
             )
             tracks.append(track)
         events, presences = self.manager.update(tracks)

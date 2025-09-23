@@ -241,6 +241,8 @@ class Ros2DjangoBridgeNode(Node):  # pragma: no cover - requires ROS runtime
         tracks = []
         for track_msg in msg.tracks:
             bbox = BoundingBox(track_msg.x, track_msg.y, track_msg.w, track_msg.h)
+            image_height = int(getattr(track_msg, "image_height", 0)) or 1
+            image_width = int(getattr(track_msg, "image_width", 0)) or 1
             tracks.append(
                 Track(
                     track_id=track_msg.track_id,
@@ -248,7 +250,7 @@ class Ros2DjangoBridgeNode(Node):  # pragma: no cover - requires ROS runtime
                     confidence=1.0,
                     room_id=msg.room_id,
                     timestamp=datetime.utcnow(),
-                    image_size=(1, 1),
+                    image_size=(image_height, image_width),
                 )
             )
         self.bridge.publish_tracks(msg.room_id, tracks, datetime.utcnow())

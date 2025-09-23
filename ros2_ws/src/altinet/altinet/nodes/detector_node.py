@@ -131,10 +131,9 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
             self._skipped_frames += 1
             if self._skipped_frames == 1 or self._skipped_frames % 10 == 0:
                 self.get_logger().debug(
-                    "Skipping camera frame; %d frame(s) deferred to honor "
-                    "min_detection_interval=%.2fs",
-                    self._skipped_frames,
-                    self._min_detection_interval,
+                    "Skipping camera frame; "
+                    f"{self._skipped_frames} frame(s) deferred to honor "
+                    f"min_detection_interval={self._min_detection_interval:.2f}s"
                 )
             return
         if not self._connection_logged:

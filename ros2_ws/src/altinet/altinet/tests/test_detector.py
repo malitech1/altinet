@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from altinet.nodes.detector_node import DetectorPipeline, load_config
-from altinet.utils.models import _scale_box
+from altinet.utils.models import _focus_close_range_detection_on_head, _scale_box
 from altinet.utils.types import BoundingBox, Detection
 
 
@@ -71,3 +71,26 @@ def test_scale_box_converts_normalized_boxes_to_pixels():
     )
 
     np.testing.assert_allclose(scaled, (240.0, 80.0, 160.0, 320.0))
+
+
+def test_focus_close_range_detection_shrinks_large_box():
+    image_shape = (720, 1280)
+    box = BoundingBox(50.0, 30.0, 400.0, 600.0)
+
+    adjusted = _focus_close_range_detection_on_head(box, image_shape)
+
+    assert adjusted.h < box.h
+    assert adjusted.w < box.w
+    np.testing.assert_allclose(adjusted.h, box.h * 0.45)
+    np.testing.assert_allclose(adjusted.w, box.w * 0.6)
+    assert adjusted.y == box.y
+    assert 0.0 <= adjusted.x <= image_shape[1] - adjusted.w
+
+
+def test_focus_close_range_detection_keeps_regular_boxes():
+    image_shape = (720, 1280)
+    box = BoundingBox(100.0, 80.0, 150.0, 180.0)
+
+    adjusted = _focus_close_range_detection_on_head(box, image_shape)
+
+    assert adjusted == box

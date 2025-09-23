@@ -26,17 +26,16 @@ graph LR
 `DetectorNode` loads YOLOv8n from `assets/models/yolov8n.onnx`, filters to
 person detections, and publishes `altinet/PersonDetections`. It exposes a
 `min_detection_interval` parameter (seconds) that throttles how often new
-frames are pushed through the network. Setting the interval to a small value
-such as `0.2` seconds caps inference around 5 FPS, which keeps the
-visualizer updated in near real-time while trimming CPU usage on edge
-devices.
+frames are pushed through the network. The default is now `1.5` seconds to
+significantly reduce inference load. Lower the interval if your hardware can
+handle additional work to tighten responsiveness.
 
 Example parameter override:
 
 ```yaml
 detector_node:
   ros__parameters:
-    min_detection_interval: 0.25  # seconds between inference runs
+    min_detection_interval: 0.25  # override default 1.5s cadence
 ```
 
 You can also adjust the parameter at runtime:
@@ -58,7 +57,10 @@ resolved identity alongside the bounding box coordinates.
 ### Tracker
 
 `TrackerNode` wraps a ByteTrack-inspired tracker that maintains stable
-IDs. It publishes `altinet/PersonTracks` for downstream consumers.
+IDs. It publishes `altinet/PersonTracks` for downstream consumers and now
+periodically extrapolates bounding boxes between detector updates using the
+tracked velocity. This keeps the visualizer aligned with the person's motion
+even while inference is throttled to every 1.5 seconds.
 
 ### Event Manager
 

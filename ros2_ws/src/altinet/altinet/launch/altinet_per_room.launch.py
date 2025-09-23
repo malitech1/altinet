@@ -27,7 +27,13 @@ def generate_launch_description() -> LaunchDescription:
                 package="altinet",
                 executable="detector_node",
                 name="detector_node",
-                parameters=[{"room_id": room_id, "config": default_config}],
+                parameters=[
+                    {
+                        "room_id": room_id,
+                        "config": default_config,
+                        "min_detection_interval": 1.5,
+                    }
+                ],
             ),
             Node(
                 package="altinet",

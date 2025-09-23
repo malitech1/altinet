@@ -73,9 +73,7 @@ class ByteTrack:
             track_id = track_ids[track_idx]
             track = self.tracks[track_id]
             detection = detections[det_idx]
-            velocity = _estimate_velocity(
-                track.bbox.centroid(), detection.bbox.centroid()
-            )
+            velocity = _estimate_velocity(track, detection)
             updated_tracks[track_id] = Track(
                 track_id=track_id,
                 bbox=detection.bbox,
@@ -124,12 +122,15 @@ class ByteTrack:
         return list(self.tracks.values())
 
 
-def _estimate_velocity(
-    previous: Tuple[float, float], current: Tuple[float, float]
-) -> Tuple[float, float]:
-    """Estimate the velocity vector between two positions."""
+def _estimate_velocity(track: Track, detection: Detection) -> Tuple[float, float]:
+    """Estimate the velocity vector (pixels per second) between detections."""
 
-    return current[0] - previous[0], current[1] - previous[1]
+    prev_cx, prev_cy = track.bbox.centroid()
+    curr_cx, curr_cy = detection.bbox.centroid()
+    dt = (detection.timestamp - track.timestamp).total_seconds()
+    if dt <= 0.0:
+        return curr_cx - prev_cx, curr_cy - prev_cy
+    return (curr_cx - prev_cx) / dt, (curr_cy - prev_cy) / dt
 
 
 def _iou_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:

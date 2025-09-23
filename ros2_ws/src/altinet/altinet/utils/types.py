@@ -66,7 +66,8 @@ class Track:
         room_id: Room identifier associated with the track.
         timestamp: Timestamp of the most recent update.
         image_size: Dimensions of the frame that produced the update.
-        velocity: Estimated pixel displacement between consecutive frames.
+        velocity: Estimated pixel velocity (pixels per second) based on
+            recent detections.
         hits: Number of successful detection associations.
         age: Number of consecutive updates without a detection match.
     """

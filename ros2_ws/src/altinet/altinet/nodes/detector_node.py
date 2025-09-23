@@ -82,12 +82,18 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         self.declare_parameter("room_id", "room_1")
         self.declare_parameter("identity_service_enabled", True)
         self.declare_parameter("identity_service_timeout", 0.25)
+        self.declare_parameter("min_detection_interval", 0.0)
         config_path = Path(self.get_parameter("config").value)
         room_id = str(self.get_parameter("room_id").value)
         config = load_config(config_path)
         self.pipeline = DetectorPipeline(YoloV8Detector(config))
         self.room_id = room_id
         self.bridge = CvBridge()
+        self._min_detection_interval = float(
+            self.get_parameter("min_detection_interval").value
+        )
+        self._last_detection_time = time.monotonic() - self._min_detection_interval
+        self._skipped_frames = 0
         self._connection_logged = False
         self.subscription = self.create_subscription(
             Image,
@@ -120,6 +126,17 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
                 )
 
     def _on_image(self, msg: Image) -> None:
+        now = time.monotonic()
+        if now - self._last_detection_time < self._min_detection_interval:
+            self._skipped_frames += 1
+            if self._skipped_frames == 1 or self._skipped_frames % 10 == 0:
+                self.get_logger().debug(
+                    "Skipping camera frame; %d frame(s) deferred to honor "
+                    "min_detection_interval=%.2fs",
+                    self._skipped_frames,
+                    self._min_detection_interval,
+                )
+            return
         if not self._connection_logged:
             self.get_logger().info(
                 f"Established connection to camera feed for room '{self.room_id}'. "
@@ -131,6 +148,8 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         detections = self.pipeline.process(
             frame, self.room_id, msg.header.frame_id, timestamp
         )
+        self._last_detection_time = time.monotonic()
+        self._skipped_frames = 0
         if detections:
             for detection in detections:
                 bbox = detection.bbox

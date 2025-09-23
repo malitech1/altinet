@@ -24,7 +24,29 @@ graph LR
 ### Detector
 
 `DetectorNode` loads YOLOv8n from `assets/models/yolov8n.onnx`, filters to
-person detections, and publishes `altinet/PersonDetections`.
+person detections, and publishes `altinet/PersonDetections`. It exposes a
+`min_detection_interval` parameter (seconds) that throttles how often new
+frames are pushed through the network. Setting the interval to a small value
+such as `0.2` seconds caps inference around 5 FPS, which keeps the
+visualizer updated in near real-time while trimming CPU usage on edge
+devices.
+
+Example parameter override:
+
+```yaml
+detector_node:
+  ros__parameters:
+    min_detection_interval: 0.25  # seconds between inference runs
+```
+
+You can also adjust the parameter at runtime:
+
+```bash
+ros2 param set /detector_node min_detection_interval 0.25
+```
+
+Tune the interval based on hardware characteristics—the higher the value, the
+more frames are skipped, reducing workload at the cost of responsiveness.
 
 ### Identity Service
 

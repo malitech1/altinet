@@ -11,6 +11,7 @@ install(
     scripts/camera_node
     scripts/camera_viewer_node
     scripts/detector_node
+    scripts/identity_node
     scripts/tracker_node
     scripts/event_manager_node
     scripts/lighting_control_node

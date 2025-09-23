@@ -39,7 +39,7 @@ class TrackerNode(Node):  # pragma: no cover - requires ROS runtime
 
     def __init__(self) -> None:
         super().__init__("tracker_node")
-        self.declare_parameter("track_thresh", 0.4)
+        self.declare_parameter("track_thresh", 0.75)
         self.declare_parameter("match_thresh", 0.7)
         self.declare_parameter("max_age", 30)
 

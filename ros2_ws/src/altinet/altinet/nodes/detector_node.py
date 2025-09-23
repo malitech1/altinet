@@ -82,7 +82,7 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         self.declare_parameter("room_id", "room_1")
         self.declare_parameter("identity_service_enabled", True)
         self.declare_parameter("identity_service_timeout", 0.25)
-        self.declare_parameter("min_detection_interval", 0.0)
+        self.declare_parameter("min_detection_interval", 1.5)
         config_path = Path(self.get_parameter("config").value)
         room_id = str(self.get_parameter("room_id").value)
         config = load_config(config_path)

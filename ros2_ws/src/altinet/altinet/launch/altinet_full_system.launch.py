@@ -31,6 +31,7 @@ def generate_launch_description() -> LaunchDescription:
                         "config": PathJoinSubstitution(
                             [altinet_share, "config", "yolo.yaml"]
                         ),
+                        "min_detection_interval": 1.5,
                     }
                 ],
             ),

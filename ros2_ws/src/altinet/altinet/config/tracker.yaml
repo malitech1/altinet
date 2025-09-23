@@ -3,3 +3,5 @@ tracker_node:
     track_thresh: 0.45
     match_thresh: 0.7
     max_age: 30
+    prediction_publish_rate: 10.0
+    prediction_horizon_seconds: 1.5

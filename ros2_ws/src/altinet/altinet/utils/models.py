@@ -78,7 +78,8 @@ class YoloV8Detector:
         boxes = predictions[:, :4]
         class_prob_matrix = predictions[:, 4:]
 
-        detections: List[Detection] = []
+        scaled_boxes: List[BoundingBox] = []
+        confidences: List[float] = []
         for idx in range(boxes.shape[0]):
             class_probs = class_prob_matrix[idx]
             if class_probs.size == 0:
@@ -90,24 +91,29 @@ class YoloV8Detector:
             if score < self.config.conf_thresh:
                 continue
             box = boxes[idx]
-            bbox = _scale_box(box, ratio, padding, image.shape[:2])
-            detections.append(
-                Detection(
-                    bbox=BoundingBox(*bbox),
-                    confidence=score,
-                    room_id=room_id,
-                    frame_id=frame_id,
-                    timestamp=timestamp,
-                    image_size=image.shape[:2],
-                )
+            scaled = _scale_box(
+                box,
+                ratio,
+                padding,
+                image.shape[:2],
+                input_shape=(self.input_height, self.input_width),
             )
+            scaled_boxes.append(BoundingBox(*scaled))
+            confidences.append(score)
 
-        keep = _nms(
-            [d.bbox for d in detections],
-            [d.confidence for d in detections],
-            self.config.iou_thresh,
-        )
-        return [detections[i] for i in keep]
+        keep = _nms(scaled_boxes, confidences, self.config.iou_thresh)
+
+        return [
+            Detection(
+                bbox=scaled_boxes[i],
+                confidence=confidences[i],
+                room_id=room_id,
+                frame_id=frame_id,
+                timestamp=timestamp,
+                image_size=image.shape[:2],
+            )
+            for i in keep
+        ]
 
 
 def _letterbox(
@@ -139,10 +145,17 @@ def _scale_box(
     ratio: float,
     padding: Tuple[float, float],
     original_shape: Tuple[int, int],
+    input_shape: Optional[Tuple[int, int]] = None,
 ) -> Tuple[float, float, float, float]:
     """Scale a YOLO ``box`` back to the original image size."""
 
-    cx, cy, w, h = box
+    cx, cy, w, h = map(float, box)
+    if input_shape is not None:
+        input_height, input_width = input_shape
+        cx *= float(input_width)
+        cy *= float(input_height)
+        w *= float(input_width)
+        h *= float(input_height)
     cx -= padding[0]
     cy -= padding[1]
     cx /= ratio

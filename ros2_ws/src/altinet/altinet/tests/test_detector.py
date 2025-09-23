@@ -58,3 +58,16 @@ def test_scale_box_clamps_boxes_outside_top_left():
     assert bbox.w >= 0.0
     assert bbox.h >= 0.0
     assert bbox.w == 0.0
+
+
+def test_scale_box_converts_normalized_boxes_to_pixels():
+    box = np.array([0.5, 0.5, 0.25, 0.5], dtype=np.float32)
+    scaled = _scale_box(
+        box,
+        ratio=1.0,
+        padding=(0.0, 80.0),
+        original_shape=(480, 640),
+        input_shape=(640, 640),
+    )
+
+    np.testing.assert_allclose(scaled, (240.0, 80.0, 160.0, 320.0))

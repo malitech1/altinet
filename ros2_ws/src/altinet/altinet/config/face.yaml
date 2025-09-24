@@ -1,0 +1,30 @@
+# Default face recognition configuration for Altinet.
+detector:
+  model_path: models/retinaface.onnx
+  det_thresh: 0.5
+  nms_thresh: 0.4
+  input_size: [640, 640]
+  providers:
+    - CPUExecutionProvider
+  max_faces: 32
+  quality:
+    enabled: true
+    max_roll: 35.0
+    max_yaw: 35.0
+    max_pitch: 35.0
+    min_sharpness: 10.0
+    max_occlusion: 0.6
+embedder:
+  model_path: models/arcface.onnx
+  input_size: [112, 112]
+  mean: [127.5, 127.5, 127.5]
+  std: [128.0, 128.0, 128.0]
+  providers:
+    - CPUExecutionProvider
+  embedding_dim: 512
+  model_type: arcface
+identifier:
+  embedding_dim: 512
+  similarity_threshold: 0.5
+  top_k: 1
+  normalize: true

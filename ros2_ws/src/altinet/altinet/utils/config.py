@@ -65,4 +65,15 @@ def default_yolo_config_path() -> Path:
     return package_config_path("yolo.yaml")
 
 
-__all__ = ["load_file", "package_config_path", "default_yolo_config_path"]
+def default_face_config_path() -> Path:
+    """Return the packaged default face recognition configuration path."""
+
+    return package_config_path("face.yaml")
+
+
+__all__ = [
+    "load_file",
+    "package_config_path",
+    "default_yolo_config_path",
+    "default_face_config_path",
+]

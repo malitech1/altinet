@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from typing import Dict, Iterable, List, Tuple
 
@@ -84,6 +84,8 @@ class ByteTrack:
                 velocity=velocity,
                 hits=track.hits + 1,
                 age=0,
+                identity_id=track.identity_id,
+                identity_confidence=track.identity_confidence,
             )
 
         for track_id in unmatched_tracks:
@@ -100,6 +102,8 @@ class ByteTrack:
                 velocity=track.velocity,
                 hits=track.hits,
                 age=track.age + 1,
+                identity_id=track.identity_id,
+                identity_confidence=track.identity_confidence,
             )
 
         for det_idx in unmatched_detections:
@@ -116,10 +120,25 @@ class ByteTrack:
                 velocity=(0.0, 0.0),
                 hits=1,
                 age=0,
+                identity_id=None,
+                identity_confidence=0.0,
             )
 
         self.tracks = updated_tracks
         return list(self.tracks.values())
+
+    def assign_identity(self, track_id: int, identity_id: str, confidence: float) -> bool:
+        """Assign ``identity_id`` to an active track."""
+
+        track = self.tracks.get(track_id)
+        if track is None:
+            return False
+        self.tracks[track_id] = replace(
+            track,
+            identity_id=identity_id,
+            identity_confidence=confidence,
+        )
+        return True
 
 
 def _estimate_velocity(track: Track, detection: Detection) -> Tuple[float, float]:

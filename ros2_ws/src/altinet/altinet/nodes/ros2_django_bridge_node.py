@@ -41,7 +41,7 @@ from ..utils.types import (
     BoundingBox,
     Event as EventModel,
     FaceEnrolmentConfirmation as FaceEnrolmentModel,
-    FaceSnapshot as FaceSnapshotModel,
+    FaceSnapshotRecord as FaceSnapshotModel,
     RoomPresence as RoomPresenceModel,
     Track,
 )

@@ -61,6 +61,11 @@ class TrackerPipeline:
             predicted.append(replace(track, bbox=bbox, timestamp=now))
         return predicted
 
+    def assign_identity(self, track_id: int, identity_id: str, confidence: float) -> bool:
+        """Associate a known identity with a track."""
+
+        return self.tracker.assign_identity(track_id, identity_id, confidence)
+
 
 class TrackerNode(Node):  # pragma: no cover - requires ROS runtime
     """ROS 2 node bridging detection and tracking stages."""

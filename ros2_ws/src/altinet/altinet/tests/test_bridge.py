@@ -9,7 +9,7 @@ from altinet.utils.types import (
     BoundingBox,
     Event,
     FaceEnrolmentConfirmation,
-    FaceSnapshot,
+    FaceSnapshotRecord,
     RoomPresence,
     Track,
 )
@@ -92,7 +92,7 @@ def test_bridge_handles_face_messages():
     )
     transport = DummyTransport()
     bridge = DjangoBridge(config, transport=transport)
-    snapshot = FaceSnapshot(
+    snapshot = FaceSnapshotRecord(
         identity_id="alice",
         embedding_id="emb1",
         track_id=7,

@@ -5,6 +5,8 @@ from __future__ import annotations
 try:
     from altinet_interfaces.msg import (
         Event,
+        FaceSnapshot,
+        FaceSnapshots,
         PersonDetection,
         PersonDetections,
         PersonTrack,
@@ -19,6 +21,8 @@ except ImportError as exc:  # pragma: no cover - requires ROS interfaces
 
 __all__ = [
     "Event",
+    "FaceSnapshot",
+    "FaceSnapshots",
     "PersonDetection",
     "PersonDetections",
     "PersonTrack",

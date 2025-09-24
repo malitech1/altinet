@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from typing import Iterable, Optional
 
-from .types import Detection, Event, RoomPresence, Track
+import numpy as np
+
+from .types import Detection, Event, FaceSnapshot, RoomPresence, Track
 
 _ROS_IMPORT_ERROR: Optional[Exception] = None
 try:  # pragma: no cover - optional at test time
     from std_msgs.msg import Header
     from altinet.msg import (
         Event as EventMsg,
+        FaceSnapshot as FaceSnapshotMsg,
+        FaceSnapshots as FaceSnapshotsMsg,
         PersonDetection as PersonDetectionMsg,
         PersonDetections as PersonDetectionsMsg,
         PersonTrack as PersonTrackMsg,
@@ -20,7 +24,13 @@ try:  # pragma: no cover - optional at test time
     from altinet.srv import ManualLightOverride
 except ImportError as exc:  # pragma: no cover - executed when ROS not available
     _ROS_IMPORT_ERROR = exc
-    Header = EventMsg = PersonDetectionMsg = PersonDetectionsMsg = PersonTrackMsg = (
+    Header = (
+        EventMsg
+    ) = (
+        FaceSnapshotMsg
+    ) = (
+        FaceSnapshotsMsg
+    ) = PersonDetectionMsg = PersonDetectionsMsg = PersonTrackMsg = (
         PersonTracksMsg
     ) = RoomPresenceMsg = ManualLightOverride = None
 
@@ -103,6 +113,52 @@ def single_track_to_msg(track: Track, header) -> PersonTrackMsg:
     return msg
 
 
+def face_snapshot_to_msg(snapshot: FaceSnapshot, header) -> FaceSnapshotMsg:
+    if FaceSnapshotMsg is None:
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
+    msg = FaceSnapshotMsg()
+    msg.header = Header()
+    msg.header.stamp = header.stamp
+    msg.header.frame_id = header.frame_id
+    msg.room_id = snapshot.room_id
+    msg.track_id = int(snapshot.track_id)
+    msg.x = float(snapshot.bbox.x)
+    msg.y = float(snapshot.bbox.y)
+    msg.w = float(snapshot.bbox.w)
+    msg.h = float(snapshot.bbox.h)
+    msg.quality_score = float(snapshot.quality.score)
+    msg.sharpness = float(snapshot.quality.sharpness)
+    msg.brightness = float(snapshot.quality.brightness)
+    msg.pose_score = float(snapshot.quality.pose)
+    msg.landmarks = list(snapshot.landmarks.flatten())
+    msg.embedding = [float(value) for value in snapshot.embedding]
+    face_image = np.ascontiguousarray(snapshot.face_image)
+    msg.face_height = snapshot.face_height
+    msg.face_width = snapshot.face_width
+    msg.face_encoding = snapshot.encoding
+    msg.face_data = bytes(face_image.tobytes())
+    return msg
+
+
+def face_snapshots_to_msg(
+    snapshots: Iterable[FaceSnapshot], header
+) -> FaceSnapshotsMsg:
+    if FaceSnapshotsMsg is None:
+        message = "ROS messages are not available in this environment"
+        if _ROS_IMPORT_ERROR is not None:
+            message += f": {_ROS_IMPORT_ERROR}"
+        raise RuntimeError(message) from _ROS_IMPORT_ERROR
+    snapshots = list(snapshots)
+    msg = FaceSnapshotsMsg()
+    msg.header = header
+    msg.room_id = snapshots[0].room_id if snapshots else ""
+    msg.snapshots = [face_snapshot_to_msg(snapshot, header) for snapshot in snapshots]
+    return msg
+
+
 def presence_to_msg(presence: RoomPresence, header) -> RoomPresenceMsg:
     if RoomPresenceMsg is None:
         message = "ROS messages are not available in this environment"
@@ -147,6 +203,8 @@ __all__ = [
     "single_detection_to_msg",
     "tracks_to_msg",
     "single_track_to_msg",
+    "face_snapshot_to_msg",
+    "face_snapshots_to_msg",
     "presence_to_msg",
     "event_to_msg",
 ]

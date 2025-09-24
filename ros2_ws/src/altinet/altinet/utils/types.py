@@ -124,6 +124,30 @@ class LightCommand:
     timestamp: datetime
 
 
+@dataclass
+class FaceSnapshot:
+    """Metadata published when a new face embedding snapshot is captured."""
+
+    identity_id: str
+    embedding_id: str | None
+    track_id: int | None
+    camera_id: str | None
+    captured_at: datetime
+    quality: float
+    metadata: Dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
+class FaceEnrolmentConfirmation:
+    """Confirmation message indicating that an enrolment completed."""
+
+    identity_id: str
+    embedding_ids: List[str]
+    status: str
+    created_at: datetime
+    metadata: Dict[str, object] = field(default_factory=dict)
+
+
 __all__ = [
     "BoundingBox",
     "Detection",
@@ -131,4 +155,6 @@ __all__ = [
     "RoomPresence",
     "Event",
     "LightCommand",
+    "FaceSnapshot",
+    "FaceEnrolmentConfirmation",
 ]

@@ -98,7 +98,14 @@ def capture_additional_photos(out_dir: Path, count: int = 20) -> None:
     cap.release()
 
 
-def train_user_photos(user_dir: Path, name: str) -> None:
+def train_user_photos(
+    service: FaceRecognitionService,
+    user_dir: Path,
+    name: str,
+    *,
+    quality_threshold: float = 0.0,
+    extra_metadata: Dict[str, Any] | None = None,
+) -> None:
     """Train the face recognition system on images in ``user_dir``.
 
     Each photo in ``user_dir / 'photos'`` is encoded and added to the
@@ -109,13 +116,20 @@ def train_user_photos(user_dir: Path, name: str) -> None:
     if face_recognition is None:  # pragma: no cover - dependency missing
         print("face_recognition is not installed; skipping training.")
         return
-    service = FaceRecognitionService()
     photos_dir = user_dir / "photos"
     if not photos_dir.exists():
         return
-    for photo in photos_dir.glob("*.jpg"):
-        image = face_recognition.load_image_file(photo)
-        service.train(image, name)
+    result = service.enrol_directory(
+        name,
+        photos_dir,
+        quality_threshold=quality_threshold,
+        extra_metadata=extra_metadata,
+    )
+    print(
+        "Accepted {0} photos (rejected {1})".format(
+            result.accepted_count, result.rejected_count
+        )
+    )
 
 
 def main() -> None:
@@ -134,6 +148,18 @@ def main() -> None:
         default=Path("assets/users"),
         help="Directory to store user data and photos",
     )
+    parser.add_argument(
+        "--gallery-dir",
+        type=Path,
+        default=Path("assets/face_gallery"),
+        help="Directory containing the face embedding gallery",
+    )
+    parser.add_argument(
+        "--quality-threshold",
+        type=float,
+        default=0.2,
+        help="Minimum image quality (0-1) required to enrol a photo",
+    )
     args = parser.parse_args()
 
     data = collect_user_data()
@@ -147,7 +173,14 @@ def main() -> None:
         json.dump(data, fh, indent=2)
     print(f"User data saved to {user_dir}")
 
-    train_user_photos(user_dir, data["name"])
+    service = FaceRecognitionService(gallery_dir=args.gallery_dir)
+    train_user_photos(
+        service,
+        user_dir,
+        data["name"],
+        quality_threshold=args.quality_threshold,
+        extra_metadata={"profile": data},
+    )
 
 
 if __name__ == "__main__":

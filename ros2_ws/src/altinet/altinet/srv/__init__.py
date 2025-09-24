@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 try:
-    from altinet_interfaces.srv import CheckPersonIdentity, ManualLightOverride
+    import altinet_interfaces.srv as _altinet_srv
 except ImportError as exc:  # pragma: no cover - requires ROS interfaces
     raise ImportError(
         "altinet_interfaces.srv could not be imported. "
         "Ensure the Altinet ROS 2 interfaces package is built and sourced."
     ) from exc
 
-__all__ = ["ManualLightOverride", "CheckPersonIdentity"]
+ManualLightOverride = _altinet_srv.ManualLightOverride
+CheckPersonIdentity = _altinet_srv.CheckPersonIdentity
+FaceEnrolment = getattr(_altinet_srv, "FaceEnrolment", None)
+
+__all__ = ["ManualLightOverride", "CheckPersonIdentity", "FaceEnrolment"]

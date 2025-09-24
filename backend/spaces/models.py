@@ -8,6 +8,7 @@ from typing import Iterable, List, Sequence
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from .fields import EncryptedTextField
 
@@ -145,3 +146,72 @@ class CameraCalibrationRun(TimeStampedModel):
 
     def __str__(self) -> str:  # pragma: no cover
         return f"CalibrationRun<{self.camera_id} {self.status}>"
+
+
+class Identity(TimeStampedModel):
+    """Represents a known person within the face recognition gallery."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    display_name = models.CharField(max_length=120)
+    external_id = models.CharField(max_length=120, blank=True, null=True, unique=True)
+    is_active = models.BooleanField(default=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["display_name"]
+
+    def __str__(self) -> str:  # pragma: no cover - readable repr
+        return f"Identity<{self.display_name}>"
+
+
+class FaceEmbedding(TimeStampedModel):
+    """Stored face embedding vectors generated during enrolment."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    identity = models.ForeignKey(
+        Identity, related_name="embeddings", on_delete=models.CASCADE
+    )
+    embedding_id = models.CharField(max_length=64, unique=True)
+    vector = models.JSONField(default=list)
+    quality = models.FloatField(default=0.0)
+    track_id = models.IntegerField(blank=True, null=True)
+    camera = models.ForeignKey(
+        Camera, related_name="face_embeddings", on_delete=models.SET_NULL, blank=True, null=True
+    )
+    captured_at = models.DateTimeField(default=timezone.now)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:  # pragma: no cover - readable repr
+        return f"FaceEmbedding<{self.embedding_id}>"
+
+
+class FaceSnapshot(TimeStampedModel):
+    """Audit log entry referencing the raw snapshot used for enrolment."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    identity = models.ForeignKey(
+        Identity, related_name="snapshots", on_delete=models.CASCADE
+    )
+    embedding = models.ForeignKey(
+        FaceEmbedding,
+        related_name="snapshots",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+    camera = models.ForeignKey(
+        Camera, related_name="face_snapshots", on_delete=models.SET_NULL, blank=True, null=True
+    )
+    track_id = models.IntegerField(blank=True, null=True)
+    captured_at = models.DateTimeField(default=timezone.now)
+    quality = models.FloatField(default=0.0)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-captured_at"]
+
+    def __str__(self) -> str:  # pragma: no cover - readable repr
+        return f"FaceSnapshot<{self.identity_id}>"

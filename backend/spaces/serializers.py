@@ -9,7 +9,14 @@ from typing import Any, Dict, Iterable, List, Sequence
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import Camera, CameraCalibrationRun, Room
+from .models import (
+    Camera,
+    CameraCalibrationRun,
+    FaceEmbedding,
+    FaceSnapshot,
+    Identity,
+    Room,
+)
 
 
 @dataclass
@@ -264,3 +271,83 @@ class SaveIntrinsicsSerializer(serializers.Serializer):
             update_fields=["intrinsics", "metadata", "calibration_state", "updated_at"]
         )
         return camera
+
+
+class IdentitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Identity
+        fields = [
+            "id",
+            "display_name",
+            "external_id",
+            "is_active",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ("created_at", "updated_at")
+
+
+class FaceEmbeddingSerializer(serializers.ModelSerializer):
+    identity_name = serializers.CharField(source="identity.display_name", read_only=True)
+    camera_name = serializers.CharField(source="camera.name", read_only=True)
+
+    class Meta:
+        model = FaceEmbedding
+        fields = [
+            "id",
+            "identity",
+            "identity_name",
+            "embedding_id",
+            "vector",
+            "quality",
+            "track_id",
+            "camera",
+            "camera_name",
+            "captured_at",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ("created_at", "updated_at")
+
+    def validate_vector(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Vector must be provided as a list")
+        try:
+            return [float(component) for component in value]
+        except (TypeError, ValueError) as exc:  # pragma: no cover - defensive
+            raise serializers.ValidationError("Vector values must be numeric") from exc
+
+
+class FaceSnapshotSerializer(serializers.ModelSerializer):
+    identity_name = serializers.CharField(source="identity.display_name", read_only=True)
+    camera_name = serializers.CharField(source="camera.name", read_only=True)
+    embedding_id = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta:
+        model = FaceSnapshot
+        fields = [
+            "id",
+            "identity",
+            "identity_name",
+            "embedding",
+            "embedding_id",
+            "camera",
+            "camera_name",
+            "track_id",
+            "captured_at",
+            "quality",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ("created_at", "updated_at", "embedding")
+
+    def create(self, validated_data: Dict[str, Any]) -> FaceSnapshot:
+        embedding_id = validated_data.pop("embedding_id", "")
+        if embedding_id:
+            embedding = FaceEmbedding.objects.filter(embedding_id=embedding_id).first()
+            if embedding:
+                validated_data["embedding"] = embedding
+        return super().create(validated_data)

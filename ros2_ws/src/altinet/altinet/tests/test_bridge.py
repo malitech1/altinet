@@ -2,8 +2,17 @@
 
 from datetime import datetime
 
+from datetime import datetime
+
 from altinet.nodes.ros2_django_bridge_node import BridgeConfig, DjangoBridge
-from altinet.utils.types import Event, RoomPresence, Track, BoundingBox
+from altinet.utils.types import (
+    BoundingBox,
+    Event,
+    FaceEnrolmentConfirmation,
+    FaceSnapshot,
+    RoomPresence,
+    Track,
+)
 
 
 class DummyTransport:
@@ -49,6 +58,7 @@ def test_bridge_respects_privacy_flag():
     bridge = DjangoBridge(config, transport=DummyTransport())
     bridge.publish_event(make_event())
     assert len(bridge.queue) == 1
+    assert bridge.queue[0]["endpoint"] == "/events/"
 
 
 def test_bridge_flushes_queue_when_allowed():
@@ -62,6 +72,7 @@ def test_bridge_flushes_queue_when_allowed():
     bridge.publish_tracks("living_room", [make_track()], datetime.utcnow())
     assert not bridge.queue
     assert len(transport.sent) == 3
+    assert all(item["endpoint"] == "/events/" for item in transport.sent)
 
 
 def test_bridge_backoff_on_failure(monkeypatch):
@@ -73,3 +84,33 @@ def test_bridge_backoff_on_failure(monkeypatch):
     bridge.publish_event(make_event())
     assert len(bridge.queue) == 1
     assert bridge._backoff > 1.0
+
+
+def test_bridge_handles_face_messages():
+    config = BridgeConfig(
+        api_base="http://localhost", ws_url=None, auth_token=None, forward_allowed=True
+    )
+    transport = DummyTransport()
+    bridge = DjangoBridge(config, transport=transport)
+    snapshot = FaceSnapshot(
+        identity_id="alice",
+        embedding_id="emb1",
+        track_id=7,
+        camera_id="cam-1",
+        captured_at=datetime.utcnow(),
+        quality=0.9,
+        metadata={"note": "hat"},
+    )
+    confirmation = FaceEnrolmentConfirmation(
+        identity_id="alice",
+        embedding_ids=["emb1"],
+        status="stored",
+        created_at=datetime.utcnow(),
+        metadata={"source": "test"},
+    )
+    bridge.publish_face_snapshot(snapshot)
+    bridge.publish_enrolment_confirmation(confirmation)
+    assert not bridge.queue
+    assert len(transport.sent) == 2
+    assert transport.sent[0]["endpoint"] == "/face-snapshots/"
+    assert transport.sent[1]["endpoint"] == "/face-enrolments/"

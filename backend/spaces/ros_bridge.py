@@ -43,3 +43,6 @@ class ROSBridgeClient:
 
     def list_cameras(self) -> Dict[str, Any]:
         return self._post("/ros/camera/list", {})
+
+    def upload_face_embedding(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self._post("/ros/face/enroll", payload)

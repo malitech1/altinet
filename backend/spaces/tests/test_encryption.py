@@ -27,7 +27,7 @@ def test_rtsp_url_encrypted_at_rest(room):
     assert camera.is_rtsp_encrypted is True
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT rtsp_url FROM spaces_camera WHERE id=%s", [str(camera.id)]
+            "SELECT rtsp_url FROM spaces_camera WHERE id=%s", [camera.id.hex]
         )
         raw_value = cursor.fetchone()[0]
     assert raw_value != "rtsp://user:pass@example/stream"

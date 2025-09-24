@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from django.db import transaction
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -11,12 +12,13 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 
-from .models import Camera, CameraCalibrationRun, Room
+from .models import Camera, CameraCalibrationRun, FaceEmbedding, FaceSnapshot, Identity, Room
 from .ros_bridge import ROSBridgeClient
 from .serializers import (CalibrationCancelSerializer,
                           CalibrationStartSerializer,
                           CameraCalibrationRunSerializer, CameraSerializer,
-                          CameraTestConnectionSerializer,
+                          CameraTestConnectionSerializer, FaceEmbeddingSerializer,
+                          FaceSnapshotSerializer, IdentitySerializer,
                           RoomRecenterSerializer, RoomSerializer,
                           SaveIntrinsicsSerializer)
 
@@ -143,3 +145,48 @@ class CameraViewSet(viewsets.ModelViewSet):
         return Response(
             CameraSerializer(camera, context=self.get_serializer_context()).data
         )
+
+
+class IdentityViewSet(viewsets.ModelViewSet):
+    queryset = Identity.objects.all()
+    serializer_class = IdentitySerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["is_active", "external_id"]
+    ordering_fields = ["display_name", "created_at"]
+    search_fields = ["display_name", "external_id"]
+
+
+class FaceEmbeddingViewSet(viewsets.ModelViewSet):
+    queryset = FaceEmbedding.objects.select_related("identity", "camera").all()
+    serializer_class = FaceEmbeddingSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["identity", "camera"]
+    ordering_fields = ["captured_at", "created_at"]
+    search_fields = ["embedding_id", "identity__display_name"]
+
+    def get_bridge(self) -> ROSBridgeClient:
+        return ROSBridgeClient()
+
+    def perform_create(self, serializer: FaceEmbeddingSerializer) -> None:
+        with transaction.atomic():
+            embedding: FaceEmbedding = serializer.save()
+            payload = {
+                "identity": str(embedding.identity_id),
+                "embedding_id": embedding.embedding_id,
+                "vector": embedding.vector,
+                "quality": float(embedding.quality),
+                "camera_id": str(embedding.camera_id) if embedding.camera_id else None,
+                "track_id": embedding.track_id,
+                "captured_at": embedding.captured_at.isoformat(),
+                "metadata": embedding.metadata,
+            }
+            self.get_bridge().upload_face_embedding(payload)
+
+
+class FaceSnapshotViewSet(viewsets.ModelViewSet):
+    queryset = FaceSnapshot.objects.select_related("identity", "camera", "embedding").all()
+    serializer_class = FaceSnapshotSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["identity", "camera"]
+    ordering_fields = ["captured_at", "created_at"]
+    search_fields = ["identity__display_name", "embedding__embedding_id"]

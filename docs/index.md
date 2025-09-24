@@ -7,6 +7,8 @@
 - Added YOLOv8n ONNX inference, ByteTrack-based tracking, event
   management, lighting control, and a ROS→Django bridge.
 - Documented the architecture and generated API docs via `pdoc`.
+- Added a persisted face gallery with FAISS-compatible exports, enrolment
+  audit trails and REST APIs for managing identities.
 
 ## Pipeline overview
 
@@ -53,6 +55,17 @@ more frames are skipped, reducing workload at the cost of responsiveness.
 size and detector confidence to distinguish residents from guests. The
 detector queries the service asynchronously for each detection and logs the
 resolved identity alongside the bounding box coordinates.
+
+### Face recognition gallery
+
+`FaceRecognitionService` maintains a FAISS-friendly embedding matrix on disk
+and writes JSON snapshots whenever a new enrolment is attempted. The ROS 2
+`face_enroller` service accepts uploads from the web UI and notifies running
+nodes about updates. Django exposes `/api/identities/`, `/api/face-embeddings/`
+and `/api/face-snapshots/` so that operators can review audit trails and
+trigger new enrolments directly from the dashboard. The ROS→Django bridge
+forwards `FaceSnapshot` events and enrolment confirmations using the same
+privacy-aware backoff logic as room events.
 
 ### Tracker
 

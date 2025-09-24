@@ -25,6 +25,8 @@ try:  # pragma: no cover
     import rclpy
     from rclpy.node import Node
     from altinet.msg import Event as EventMsg
+    from altinet.msg import FaceEnrolment as FaceEnrolmentMsg
+    from altinet.msg import FaceSnapshot as FaceSnapshotMsg
     from altinet.msg import PersonTracks as PersonTracksMsg
     from altinet.msg import RoomPresence as RoomPresenceMsg
 except ImportError as exc:  # pragma: no cover - executed in tests
@@ -32,11 +34,14 @@ except ImportError as exc:  # pragma: no cover - executed in tests
     rclpy = None
     Node = object  # type: ignore
     EventMsg = PersonTracksMsg = RoomPresenceMsg = None
+    FaceSnapshotMsg = FaceEnrolmentMsg = None
 
 from ..utils.config import load_file
 from ..utils.types import (
     BoundingBox,
     Event as EventModel,
+    FaceEnrolmentConfirmation as FaceEnrolmentModel,
+    FaceSnapshot as FaceSnapshotModel,
     RoomPresence as RoomPresenceModel,
     Track,
 )
@@ -70,11 +75,15 @@ class RequestsTransport(BridgeTransport):
         self.session = requests.Session()
 
     def send(self, payload: Dict[str, object]) -> None:
-        url = f"{self.config.api_base.rstrip('/')}/events/"
+        endpoint = str(payload.get("endpoint", "/events/"))
+        if not endpoint.startswith("/"):
+            endpoint = "/" + endpoint
+        url = f"{self.config.api_base.rstrip('/')}{endpoint}"
+        data = payload.get("data", {})
         headers = {}
         if self.config.auth_token:
             headers["Authorization"] = f"Token {self.config.auth_token}"
-        response = self.session.post(url, json=payload, headers=headers, timeout=5)
+        response = self.session.post(url, json=data, headers=headers, timeout=5)
         response.raise_for_status()
 
 
@@ -142,8 +151,7 @@ class DjangoBridge:
         }
         if centroid is not None:
             payload["centroid"] = centroid
-        self.queue.append(payload)
-        self._flush()
+        self._enqueue("/events/", payload)
 
     def publish_presence(self, presence: RoomPresenceModel) -> None:
         payload = {
@@ -152,8 +160,7 @@ class DjangoBridge:
             "timestamp": presence.timestamp.isoformat(),
             "track_ids": presence.track_ids,
         }
-        self.queue.append(payload)
-        self._flush()
+        self._enqueue("/events/", payload)
 
     def publish_tracks(
         self, room_id: str, tracks: Iterable[Track], timestamp: datetime
@@ -166,7 +173,34 @@ class DjangoBridge:
                 "track_id": track.track_id,
                 "centroid": _normalise_centroid(track),
             }
-            self.queue.append(payload)
+            self._enqueue("/events/", payload)
+
+    def publish_face_snapshot(self, snapshot: FaceSnapshotModel) -> None:
+        payload = {
+            "identity": snapshot.identity_id,
+            "embedding_id": snapshot.embedding_id,
+            "track_id": snapshot.track_id,
+            "camera_id": snapshot.camera_id,
+            "captured_at": snapshot.captured_at.isoformat(),
+            "quality": float(snapshot.quality),
+            "metadata": snapshot.metadata,
+        }
+        self._enqueue("/face-snapshots/", payload)
+
+    def publish_enrolment_confirmation(
+        self, confirmation: FaceEnrolmentModel
+    ) -> None:
+        payload = {
+            "identity": confirmation.identity_id,
+            "embedding_ids": confirmation.embedding_ids,
+            "status": confirmation.status,
+            "created_at": confirmation.created_at.isoformat(),
+            "metadata": confirmation.metadata,
+        }
+        self._enqueue("/face-enrolments/", payload)
+
+    def _enqueue(self, endpoint: str, data: Dict[str, object]) -> None:
+        self.queue.append({"endpoint": endpoint, "data": data})
         self._flush()
 
     def _flush(self) -> None:
@@ -218,6 +252,21 @@ class Ros2DjangoBridgeNode(Node):  # pragma: no cover - requires ROS runtime
         self.tracks_sub = self.create_subscription(
             PersonTracksMsg, "/altinet/person_tracks", self._on_tracks, 10
         )
+        if FaceSnapshotMsg is not None:
+            self.face_snapshot_sub = self.create_subscription(
+                FaceSnapshotMsg, "/altinet/face_snapshot", self._on_face_snapshot, 10
+            )
+        else:  # pragma: no cover - executed in unit tests without ROS interfaces
+            self.face_snapshot_sub = None
+        if FaceEnrolmentMsg is not None:
+            self.enrolment_sub = self.create_subscription(
+                FaceEnrolmentMsg,
+                "/altinet/face_enrolment",
+                self._on_enrolment_confirmation,
+                10,
+            )
+        else:  # pragma: no cover - executed in unit tests without ROS interfaces
+            self.enrolment_sub = None
 
     def _on_event(self, msg: EventMsg) -> None:
         event = EventModel(
@@ -255,12 +304,75 @@ class Ros2DjangoBridgeNode(Node):  # pragma: no cover - requires ROS runtime
             )
         self.bridge.publish_tracks(msg.room_id, tracks, datetime.utcnow())
 
+    def _on_face_snapshot(self, msg: FaceSnapshotMsg) -> None:
+        metadata = {}
+        raw_metadata = getattr(msg, "metadata_json", "")
+        if raw_metadata:
+            try:
+                metadata = json.loads(raw_metadata)
+            except ValueError:  # pragma: no cover - defensive
+                metadata = {}
+        snapshot = FaceSnapshotModel(
+            identity_id=getattr(msg, "identity_id", ""),
+            embedding_id=getattr(msg, "embedding_id", "") or None,
+            track_id=_safe_int(getattr(msg, "track_id", None)),
+            camera_id=getattr(msg, "camera_id", None),
+            captured_at=_coerce_datetime(getattr(msg, "captured_at", None)),
+            quality=float(getattr(msg, "quality", 0.0)),
+            metadata=metadata,
+        )
+        self.bridge.publish_face_snapshot(snapshot)
+
+    def _on_enrolment_confirmation(self, msg: FaceEnrolmentMsg) -> None:
+        metadata = {}
+        raw_metadata = getattr(msg, "metadata_json", "")
+        if raw_metadata:
+            try:
+                metadata = json.loads(raw_metadata)
+            except ValueError:  # pragma: no cover - defensive
+                metadata = {}
+        embedding_ids = list(getattr(msg, "embedding_ids", []))
+        confirmation = FaceEnrolmentModel(
+            identity_id=getattr(msg, "identity_id", ""),
+            embedding_ids=[str(item) for item in embedding_ids],
+            status=getattr(msg, "status", "confirmed"),
+            created_at=_coerce_datetime(getattr(msg, "created_at", None)),
+            metadata=metadata,
+        )
+        self.bridge.publish_enrolment_confirmation(confirmation)
+
 
 def _normalise_centroid(track: Track) -> List[float]:
     width = track.image_size[1] if track.image_size[1] else 1.0
     height = track.image_size[0] if track.image_size[0] else 1.0
     cx, cy = track.centroid()
     return [cx / width, cy / height]
+
+
+def _coerce_datetime(value) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if value is None:
+        return datetime.utcnow()
+    if hasattr(value, "sec"):
+        seconds = float(getattr(value, "sec", 0))
+        nanoseconds = float(getattr(value, "nanosec", getattr(value, "nanoseconds", 0)))
+        return datetime.utcfromtimestamp(seconds + nanoseconds / 1e9)
+    if isinstance(value, (int, float)):
+        return datetime.utcfromtimestamp(float(value))
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:  # pragma: no cover - defensive
+            return datetime.utcnow()
+    return datetime.utcnow()
+
+
+def _safe_int(value) -> Optional[int]:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 __all__ = [

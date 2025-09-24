@@ -14,7 +14,10 @@ Django backend for dashboards and historical analysis.
 - **Event manager** deriving entry/exit/position change events and room
   presence counts.
 - **Lighting control** with rule engine and manual override service.
-- **ROS→Django bridge** streaming events, tracks and presence to the web
+- **Face recognition gallery** with FAISS exports, audit snapshots and
+  enrolment APIs wired to the Django backend.
+- **ROS→Django bridge** streaming events, tracks, presence and face
+  snapshots to the web
   stack with privacy-aware buffering.
 
 ## Repository layout
@@ -149,6 +152,62 @@ ros2 param set /detector_node identity_service_timeout 0.5
 
 Re-enable the service or lower the timeout when you are ready to resume
 classification.
+
+## Face recognition gallery
+
+Altinet ships a lightweight face gallery manager backed by NumPy and
+FAISS-compatible exports. The gallery is shared between the ROS 2 nodes,
+the Django API and the enrolment CLI. It writes `gallery.npy` and
+`gallery.faiss` into `assets/face_gallery/` alongside JSON snapshots that
+record which curated images were accepted or rejected.
+
+### 1. Prepare the embedding model
+
+The service expects an ONNX embedding model (e.g. ArcFace) in
+`assets/models/`. Download the model that matches your hardware and set the
+path in your ROS launch configuration or environment.
+
+```
+mkdir -p assets/models
+curl -L -o assets/models/arcface.onnx https://example.com/arcface.onnx
+```
+
+### 2. Tune quality thresholds
+
+Enrolment applies a simple contrast-based quality score in the
+`[0, 1]` range. Adjust the minimum quality accepted during CLI runs or via the
+web UI to balance recall and false positives:
+
+```
+python scripts/add_user.py --quality-threshold 0.25 --gallery-dir assets/face_gallery
+```
+
+Snapshots that fall below the threshold are recorded in the audit log but are
+not added to the FAISS index.
+
+### 3. Run the CLI enrolment workflow
+
+`scripts/add_user.py` now calls `FaceRecognitionService` directly. The script
+captures photos, writes user metadata to `assets/users/<name>/metadata.json`
+and updates the gallery directory. Accepted images are added to the index and
+a JSON snapshot is stored under `assets/face_gallery/snapshots/` describing the
+decision.
+
+### 4. Manage enrolments from the web UI
+
+The Django application exposes `/api/identities/`, `/api/face-embeddings/` and
+`/api/face-snapshots/` endpoints. Creating an embedding publishes the vector to
+ROS via the `/altinet/face_enroller` service and records the payload in the
+database atomically. Face snapshots arriving from ROS are persisted together
+with camera, track and quality metadata for audit trails.
+
+### 5. ROS → Django forwarding
+
+`ros2_django_bridge_node` now listens for `FaceSnapshot` and enrolment
+confirmation messages. It forwards them according to the privacy configuration
+and reuses the same exponential backoff logic as the other topics. Nodes that
+subscribe to the `/altinet/face_gallery_updates` topic receive real-time
+notifications whenever new embeddings land.
 
 ## Testing
 

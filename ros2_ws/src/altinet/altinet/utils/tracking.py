@@ -15,7 +15,7 @@ from .types import Detection, Track
 class ByteTrackConfig:
     """Configuration for the multi-object tracker."""
 
-    track_thresh: float = 0.4
+    track_thresh: float = 0.75
     match_thresh: float = 0.7
     max_age: int = 30
     min_hits: int = 3

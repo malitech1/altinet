@@ -1,6 +1,6 @@
 tracker_node:
   ros__parameters:
-    track_thresh: 0.45
+    track_thresh: 0.75
     match_thresh: 0.7
     max_age: 30
     prediction_publish_rate: 10.0

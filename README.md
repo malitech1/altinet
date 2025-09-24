@@ -1,3 +1,5 @@
+![Altinet logo](assets/branding/Altinet%20Logo.png)
+
 # Altinet
 
 Altinet is a home perception stack that detects, tracks and contextualises

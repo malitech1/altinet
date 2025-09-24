@@ -45,6 +45,28 @@ def generate_launch_description() -> LaunchDescription:
             ),
             Node(
                 package="altinet",
+                executable="face_capture_node",
+                name="face_capture_node",
+                parameters=[
+                    {
+                        "room_id": room_id,
+                        "capture_cadence_s": 2.0,
+                        "minimum_quality": 0.65,
+                        "improvement_margin": 0.05,
+                        "frame_history": 60,
+                        "frame_tolerance_s": 0.2,
+                        "face_padding": 0.2,
+                        "model_name": "buffalo_l",
+                        "model_root": PathJoinSubstitution(
+                            [altinet_share, "assets", "models"]
+                        ),
+                        "det_size": [640, 640],
+                        "ctx_id": 0,
+                    }
+                ],
+            ),
+            Node(
+                package="altinet",
                 executable="visualizer_node",
                 name="visualizer_node",
                 parameters=[{"room_id": room_id}],

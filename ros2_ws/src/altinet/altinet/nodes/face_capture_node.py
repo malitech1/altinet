@@ -93,11 +93,11 @@ class FaceCaptureNode(Node):  # pragma: no cover - requires ROS runtime
                 ctx_id=ctx_id,
             )
             self.get_logger().info(
-                "Initialized InsightFace analyzer for face capture (model=%s)", model_name
+                f"Initialized InsightFace analyzer for face capture (model={model_name})"
             )
         except Exception as exc:  # pragma: no cover - depends on optional deps
             self.get_logger().error(
-                "Falling back to disabled face capture: %s", exc
+                f"Falling back to disabled face capture: {exc}"
             )
             analyzer = _FallbackAnalyzer()
 
@@ -124,7 +124,7 @@ class FaceCaptureNode(Node):  # pragma: no cover - requires ROS runtime
             self._handle_snapshot_request,
         )
         self.get_logger().info(
-            "Face capture node ready for room '%s'", self.room_id
+            f"Face capture node ready for room '{self.room_id}'"
         )
 
     # ------------------------------------------------------------------
@@ -177,10 +177,11 @@ class FaceCaptureNode(Node):  # pragma: no cover - requires ROS runtime
         self.publisher.publish(batch_msg)
         for snapshot in snapshots:
             self.get_logger().info(
-                "Updated face snapshot for track %d in room '%s' (quality=%.3f)",
-                snapshot.track_id,
-                snapshot.room_id,
-                snapshot.quality.score,
+                (
+                    "Updated face snapshot for track "
+                    f"{snapshot.track_id} in room '{snapshot.room_id}' "
+                    f"(quality={snapshot.quality.score:.3f})"
+                )
             )
 
     def _handle_snapshot_request(self, request, response):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -83,6 +83,8 @@ class Track:
     velocity: Tuple[float, float] = (0.0, 0.0)
     hits: int = 1
     age: int = 0
+    identity_id: Optional[str] = None
+    identity_confidence: float = 0.0
 
     def centroid(self) -> Tuple[float, float]:
         """Return the centroid of the tracked bounding box."""
@@ -200,7 +202,7 @@ class LightCommand:
 
 
 @dataclass
-class FaceSnapshot:
+class FaceSnapshotRecord:
     """Metadata published when a new face embedding snapshot is captured."""
 
     identity_id: str
@@ -234,6 +236,6 @@ __all__ = [
     "RoomPresence",
     "Event",
     "LightCommand",
-    "FaceSnapshot",
+    "FaceSnapshotRecord",
     "FaceEnrolmentConfirmation",
 ]

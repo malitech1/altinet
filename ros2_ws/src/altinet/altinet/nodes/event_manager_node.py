@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
+
+import numpy as np
 
 _ROS_IMPORT_ERROR: Optional[Exception] = None
 try:  # pragma: no cover - optional when ROS 2 is not available
@@ -22,8 +24,10 @@ except ImportError as exc:  # pragma: no cover - executed during tests
     EventMsg = PersonTracksMsg = RoomPresenceMsg = None
 
 from ..dashboards.floorplan_adapter import FloorplanAdapter
+from ..utils.context import RoomContextManager
 from ..utils.geometry import RoomGeometry, load_room_geometry, normalise_centroid
 from ..utils.ros_conversions import event_to_msg, presence_to_msg
+from ..utils.scene_monitor import SceneActivityConfig, SceneChangeDetector
 from ..utils.types import (
     BoundingBox,
     Event as EventModel,
@@ -38,6 +42,7 @@ class EventManagerConfig:
 
     presence_timeout_s: float = 2.0
     position_threshold: float = 0.05
+    scene_activity: SceneActivityConfig = field(default_factory=SceneActivityConfig)
 
 
 class EventManager:
@@ -47,6 +52,9 @@ class EventManager:
         self,
         config: EventManagerConfig,
         geometry_provider,
+        *,
+        scene_detector: SceneChangeDetector | None = None,
+        context_manager: RoomContextManager | None = None,
     ) -> None:
         self.config = config
         self.geometry_provider = geometry_provider
@@ -54,6 +62,9 @@ class EventManager:
         self.last_positions: Dict[int, Tuple[float, float]] = {}
         self.last_seen: Dict[int, datetime] = {}
         self.rooms: set[str] = set()
+        self.context = context_manager or RoomContextManager()
+        self.scene_detector = scene_detector or SceneChangeDetector(config.scene_activity)
+        self._room_presence: Dict[str, bool] = {}
 
     def update(
         self, tracks: Iterable[Track]
@@ -61,6 +72,7 @@ class EventManager:
         now = datetime.utcnow()
         events: List[EventModel] = []
         room_membership: Dict[str, List[int]] = defaultdict(list)
+        tracks_by_room: Dict[str, List[Track]] = defaultdict(list)
 
         for track in tracks:
             self.tracks[track.track_id] = track
@@ -93,6 +105,7 @@ class EventManager:
                 )
             self.last_positions[track.track_id] = centroid
             room_membership[track.room_id].append(track.track_id)
+            tracks_by_room[track.room_id].append(track)
 
         # Handle timeouts
         expired_tracks = [
@@ -115,6 +128,7 @@ class EventManager:
                     payload={},
                 )
             )
+            tracks_by_room.setdefault(track.room_id, [])
 
         presence: List[RoomPresenceModel] = [
             RoomPresenceModel(room_id=room_id, track_ids=ids, timestamp=now)
@@ -125,12 +139,86 @@ class EventManager:
                 presence.append(
                     RoomPresenceModel(room_id=room_id, track_ids=[], timestamp=now)
                 )
+                tracks_by_room.setdefault(room_id, [])
+
+        for room_id, room_tracks in tracks_by_room.items():
+            self.context.update_presence(room_id, room_tracks, now)
+
+        for room_id in self.rooms:
+            has_people = bool(tracks_by_room.get(room_id))
+            was_present = self._room_presence.get(room_id, False)
+            if has_people and not was_present:
+                self.scene_detector.notify_detection_result(room_id, True)
+            elif not has_people and was_present:
+                self.scene_detector.notify_detection_result(room_id, False)
+            self._room_presence[room_id] = has_people
 
         return events, presence
+
+    def observe_frame(
+        self,
+        room_id: str,
+        frame: np.ndarray,
+        timestamp: Optional[datetime] = None,
+    ) -> bool:
+        """Observe a camera frame and decide whether to run detection."""
+
+        timestamp = timestamp or datetime.utcnow()
+        decision = self.scene_detector.observe(room_id, frame)
+        brightness = _estimate_brightness(frame)
+        self.context.update_environment(
+            room_id,
+            timestamp=timestamp,
+            brightness=brightness,
+        )
+        if decision.motion_detected:
+            self.context.note_motion(room_id, timestamp)
+        return decision.should_detect
+
+    def assign_identity(
+        self,
+        track_id: int,
+        identity_id: str,
+        confidence: float,
+        timestamp: Optional[datetime] = None,
+    ) -> bool:
+        """Record that ``track_id`` corresponds to ``identity_id``."""
+
+        timestamp = timestamp or datetime.utcnow()
+        track = self.tracks.get(track_id)
+        assigned = self.context.assign_identity(
+            track_id, identity_id, confidence, timestamp
+        )
+        if track is None:
+            return assigned
+        updated = replace(
+            track,
+            identity_id=identity_id,
+            identity_confidence=confidence,
+            timestamp=timestamp,
+        )
+        self.tracks[track_id] = updated
+        self.last_seen[track_id] = timestamp
+        return True
 
 
 def _distance(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
+def _estimate_brightness(frame: np.ndarray) -> float:
+    """Return the normalised brightness of ``frame`` in ``[0.0, 1.0]``."""
+
+    if not isinstance(frame, np.ndarray) or frame.size == 0:
+        return 0.0
+    arr = np.asarray(frame, dtype=np.float32)
+    if arr.ndim == 3 and arr.shape[2] > 0:
+        arr = arr.mean(axis=2)
+    max_value = 255.0 if not np.issubdtype(arr.dtype, np.floating) else 1.0
+    if max_value == 0:
+        return 0.0
+    mean = float(np.mean(arr)) / max_value
+    return float(np.clip(mean, 0.0, 1.0))
 
 
 class EventManagerNode(Node):  # pragma: no cover - requires ROS 2 runtime

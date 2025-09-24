@@ -43,6 +43,9 @@ def test_event_manager_generates_entry_exit_and_position_change():
     assert centroid[0] == pytest.approx((10.0 + 25.0) / 1280.0)
     assert centroid[1] == pytest.approx((20.0 + 40.0) / 720.0)
     assert presence[0].count == 1
+    context = manager.context.get_room_context("living_room")
+    assert set(context.people.keys()) == {1}
+    assert context.people[1].identity_id is None
 
     events, _ = manager.update(
         [make_track(1, 40.0, 20.0, t0 + timedelta(milliseconds=33))]
@@ -60,3 +63,4 @@ def test_event_manager_generates_entry_exit_and_position_change():
     events, presence = manager.update([])
     assert any(event.type == "EXIT" for event in events)
     assert any(p.room_id == "living_room" and p.count == 0 for p in presence)
+    assert not manager.context.get_room_context("living_room").people

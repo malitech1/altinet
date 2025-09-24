@@ -3,7 +3,20 @@
 from __future__ import annotations
 
 try:
+
     import altinet_interfaces.msg as _altinet_msgs
+
+    from altinet_interfaces.msg import (
+        Event,
+        FaceSnapshot,
+        FaceSnapshots,
+        PersonDetection,
+        PersonDetections,
+        PersonTrack,
+        PersonTracks,
+        RoomPresence,
+    )
+
 except ImportError as exc:  # pragma: no cover - requires ROS interfaces
     raise ImportError(
         "altinet_interfaces.msg could not be imported. "
@@ -21,6 +34,8 @@ FaceEnrolment = getattr(_altinet_msgs, "FaceEnrolment", None)
 
 __all__ = [
     "Event",
+    "FaceSnapshot",
+    "FaceSnapshots",
     "PersonDetection",
     "PersonDetections",
     "PersonTrack",

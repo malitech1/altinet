@@ -1,0 +1,5 @@
+string room_id
+int32 track_id
+---
+bool success
+FaceSnapshot snapshot

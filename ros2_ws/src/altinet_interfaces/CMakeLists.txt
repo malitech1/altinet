@@ -12,11 +12,14 @@ set(msg_files
   "msg/PersonTrack.msg"
   "msg/PersonTracks.msg"
   "msg/RoomPresence.msg"
+  "msg/FaceSnapshot.msg"
+  "msg/FaceSnapshots.msg"
 )
 
 set(srv_files
   "srv/ManualLightOverride.srv"
   "srv/CheckPersonIdentity.srv"
+  "srv/RequestFaceSnapshot.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

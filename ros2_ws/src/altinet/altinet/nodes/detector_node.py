@@ -192,6 +192,12 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
         image_height, image_width = detection.image_size
         request.image_width = int(image_width)
         request.image_height = int(image_height)
+        if hasattr(request, "include_embedding_info"):
+            request.include_embedding_info = True
+        elif hasattr(request, "return_embedding_id"):
+            request.return_embedding_id = True
+        if hasattr(request, "include_embedding_diagnostics"):
+            request.include_embedding_diagnostics = True
 
         future = self.identity_client.call_async(request)
         future.add_done_callback(partial(self._log_identity_result, detection=detection))

@@ -12,4 +12,5 @@ websocket_urlpatterns = [
         "ws/calibration/<uuid:camera_id>",
         consumers.CalibrationProgressConsumer.as_asgi(),
     ),
+    path("ws/tracks/", consumers.PersonTrackConsumer.as_asgi()),
 ]

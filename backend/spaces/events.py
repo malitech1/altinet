@@ -31,6 +31,28 @@ def broadcast_calibration_progress(camera_id: str, payload: Dict[str, Any]) -> N
     )
 
 
+def broadcast_person_track(payload: Dict[str, Any]) -> None:
+    channel_layer = get_channel_layer()
+    if channel_layer is None:  # pragma: no cover
+        return
+    _send_group_message(
+        channel_layer,
+        "person_tracks",
+        {"type": "person_track_event", "payload": payload},
+    )
+
+
+def broadcast_room_presence(payload: Dict[str, Any]) -> None:
+    channel_layer = get_channel_layer()
+    if channel_layer is None:  # pragma: no cover
+        return
+    _send_group_message(
+        channel_layer,
+        "person_tracks",
+        {"type": "room_presence_event", "payload": payload},
+    )
+
+
 def _send_group_message(channel_layer, group: str, message: Dict[str, Any]) -> None:
     try:
         loop = asyncio.get_running_loop()

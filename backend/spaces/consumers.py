@@ -33,3 +33,22 @@ class CalibrationProgressConsumer(AsyncJsonWebsocketConsumer):
 
     async def calibration_progress_event(self, event):
         await self.send_json(event["payload"])
+
+
+class PersonTrackConsumer(AsyncJsonWebsocketConsumer):
+    group_names = ["person_tracks"]
+
+    async def connect(self) -> None:
+        for group in self.group_names:
+            await self.channel_layer.group_add(group, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code: int) -> None:  # pragma: no cover
+        for group in self.group_names:
+            await self.channel_layer.group_discard(group, self.channel_name)
+
+    async def person_track_event(self, event):
+        await self.send_json(event["payload"])
+
+    async def room_presence_event(self, event):
+        await self.send_json(event["payload"])

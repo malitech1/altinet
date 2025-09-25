@@ -4,15 +4,38 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import "./index.css";
+import LandingPage from "./pages/home";
+import LoginPage from "./pages/auth/login";
+import RegisterPage from "./pages/auth/register";
+import DashboardPage from "./pages/dashboard";
 import SpacesPage from "./pages/spaces";
+import RequireAuth from "./components/auth/RequireAuth";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <BrowserRouter>
     <Routes>
-      <Route path="/spaces" element={<SpacesPage />} />
-      <Route path="*" element={<Navigate to="/spaces" replace />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <DashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/spaces"
+        element={
+          <RequireAuth>
+            <SpacesPage />
+          </RequireAuth>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </BrowserRouter>
 );

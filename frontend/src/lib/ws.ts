@@ -10,6 +10,21 @@ export type CalibrationMessage = {
   msg: string;
 };
 
+export type PersonTrackMessage = {
+  event: "TRACK";
+  room_id: string;
+  track_id: string;
+  centroid?: [number, number];
+  timestamp?: string;
+};
+
+export type RoomPresenceMessage = {
+  event: "PRESENCE";
+  room_id: string;
+  track_ids: string[];
+  timestamp?: string;
+};
+
 const WS_BASE = (import.meta.env.VITE_WS_URL as string | undefined) ?? "ws://localhost:8000";
 
 export function createCameraHealthSocket(onMessage: (msg: CameraHealthMessage) => void) {
@@ -22,6 +37,14 @@ export function createCameraHealthSocket(onMessage: (msg: CameraHealthMessage) =
 
 export function createCalibrationSocket(cameraId: string, onMessage: (msg: CalibrationMessage) => void) {
   const socket = new WebSocket(`${WS_BASE}/ws/calibration/${cameraId}`);
+  socket.onmessage = (event) => onMessage(JSON.parse(event.data));
+  return socket;
+}
+
+export function createPersonTrackSocket(
+  onMessage: (msg: PersonTrackMessage | RoomPresenceMessage) => void
+) {
+  const socket = new WebSocket(`${WS_BASE}/ws/tracks/`);
   socket.onmessage = (event) => onMessage(JSON.parse(event.data));
   return socket;
 }

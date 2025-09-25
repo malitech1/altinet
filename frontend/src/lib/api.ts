@@ -4,10 +4,50 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 export const api = axios.create({
   baseURL: API_BASE,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json"
   }
 });
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface AuthStatus {
+  has_users: boolean;
+  is_authenticated: boolean;
+  user: AuthUser | null;
+}
+
+export async function fetchAuthStatus() {
+  const response = await api.get<AuthStatus>("/auth/status/");
+  return response.data;
+}
+
+export async function registerUser(payload: {
+  username: string;
+  password: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+}) {
+  const response = await api.post<AuthUser>("/auth/register/", payload);
+  return response.data;
+}
+
+export async function loginUser(payload: { username: string; password: string }) {
+  const response = await api.post<AuthUser>("/auth/login/", payload);
+  return response.data;
+}
+
+export async function logoutUser() {
+  await api.post("/auth/logout/");
+}
 
 export interface Room {
   id: string;

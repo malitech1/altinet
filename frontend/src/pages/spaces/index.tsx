@@ -16,6 +16,7 @@ import {
   updateRoom
 } from "../../lib/api";
 import { createCameraHealthSocket } from "../../lib/ws";
+import AppShell from "../../components/layout/AppShell";
 import RoomListPanel from "../../components/spaces/RoomListPanel";
 import RoomEditor from "../../components/spaces/RoomEditor";
 import CameraList from "../../components/spaces/CameraList";
@@ -166,13 +167,14 @@ const SpacesPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 bg-slate-950 p-8 text-slate-100">
-      <header>
-        <h1 className="text-2xl font-semibold">Spaces &amp; Cameras</h1>
-        <p className="text-sm text-slate-400">Configure rooms, place cameras and run calibrations.</p>
-      </header>
+    <AppShell>
+      <div className="space-y-6 pb-12 text-slate-100">
+        <header>
+          <h1 className="text-2xl font-semibold">Spaces &amp; Cameras</h1>
+          <p className="text-sm text-slate-400">Configure rooms, place cameras and run calibrations.</p>
+        </header>
 
-      <nav className="flex gap-3">
+        <nav className="flex gap-3">
         {Tabs.map((label) => (
           <button
             key={label}
@@ -184,9 +186,9 @@ const SpacesPage: React.FC = () => {
             {label}
           </button>
         ))}
-      </nav>
+        </nav>
 
-      {tab === "Rooms" && (
+        {tab === "Rooms" && (
         <div className="grid gap-6 lg:grid-cols-[300px,1fr]">
           <RoomListPanel
             rooms={rooms}
@@ -228,7 +230,7 @@ const SpacesPage: React.FC = () => {
         </div>
       )}
 
-      {tab === "Cameras" && (
+        {tab === "Cameras" && (
         <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
           <div className="rounded border border-slate-800 bg-slate-900 p-6">
             <div className="mb-4 flex items-center justify-between">
@@ -280,7 +282,7 @@ const SpacesPage: React.FC = () => {
         </div>
       )}
 
-      {tab === "Calibration" && (
+        {tab === "Calibration" && (
         <div className="grid gap-6 lg:grid-cols-[1fr,350px]">
           <div className="rounded border border-slate-800 bg-slate-900 p-6">
             <CalibrationWizard
@@ -297,8 +299,9 @@ const SpacesPage: React.FC = () => {
             <CalibrationRunsTable runs={calibrationRuns} />
           </div>
         </div>
-      )}
-    </div>
+        )}
+      </div>
+    </AppShell>
   );
 };
 

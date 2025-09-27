@@ -100,6 +100,17 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "static"
+
+default_frontend_dist = BASE_DIR.parent / "frontend" / "dist"
+frontend_dist_override = os.environ.get("FRONTEND_DIST_DIR")
+if frontend_dist_override:
+    FRONTEND_DIST_DIR = Path(frontend_dist_override).expanduser().resolve()
+else:
+    FRONTEND_DIST_DIR = default_frontend_dist
+
+STATICFILES_DIRS: list[Path] = []
+if FRONTEND_DIST_DIR.exists():
+    STATICFILES_DIRS.append(FRONTEND_DIST_DIR)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST Framework

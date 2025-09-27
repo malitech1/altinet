@@ -75,6 +75,38 @@ Django backend for dashboards and historical analysis.
    python scripts/run_demo.py path/to/video.mp4 --room living_room
    ```
 
+## Running the web dashboard
+
+The React dashboard is now compiled into static assets that Django serves
+directly. To update the UI bundle and start the unified application:
+
+1. Install the front-end dependencies (only required once):
+
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. Build the production bundle into `frontend/dist/`:
+
+   ```bash
+   npm run build
+   ```
+
+3. Launch Django from the project root:
+
+   ```bash
+   cd ..
+   python backend/manage.py migrate
+   DJANGO_DEBUG=true python backend/manage.py runserver
+   ```
+
+   The API and the compiled dashboard are now both available from
+   `http://127.0.0.1:8000/`. Re-run `npm run build` whenever you change the
+   front-end code so that Django serves the updated assets. Setting
+   `DJANGO_DEBUG=true` ensures Django serves the compiled static files during
+   local development.
+
 ## Identity service walkthrough
 
 The identity service classifies each detection as a resident (`user`),

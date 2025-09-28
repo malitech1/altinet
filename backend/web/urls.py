@@ -8,4 +8,5 @@ app_name = "web"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("builder/", views.builder, name="builder"),
 ]

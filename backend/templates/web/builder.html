@@ -1,0 +1,325 @@
+{% extends "web/base.html" %}
+
+{% block title %}Builder | Altinet{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-12 col-lg-8">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-dark text-white">Floorplan Builder</div>
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
+          <div class="btn-group" role="group" aria-label="Builder tools">
+            <button type="button" class="btn btn-outline-primary active" data-tool="wall">
+              Wall tool
+            </button>
+            <button type="button" class="btn btn-outline-primary" data-tool="room">
+              Room tool
+            </button>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary" id="undoLast">
+              Undo last
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="clearCanvas">
+              Clear all
+            </button>
+          </div>
+        </div>
+        <div class="border rounded position-relative overflow-hidden">
+          <canvas
+            id="builderCanvas"
+            width="900"
+            height="600"
+            class="w-100 h-auto"
+          ></canvas>
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+          Use the wall tool to draw structural lines that snap to the grid. Switch to
+          the room tool to drag out rectangular rooms and give them names. All data is
+          kept in your browser for now.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-dark text-white">Rooms</div>
+      <div class="card-body d-flex flex-column">
+        <p class="text-muted small">
+          Rooms you define are listed here with their grid dimensions. Use this as a
+          quick reference while sketching your layout.
+        </p>
+        <ul class="list-group flex-grow-1" id="roomList"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const canvas = document.getElementById("builderCanvas");
+    const ctx = canvas.getContext("2d");
+    const gridSize = 30;
+    const walls = [];
+    const rooms = [];
+    let isDrawing = false;
+    let startPoint = null;
+    let previewPoint = null;
+    let activeTool = "wall";
+
+    const toolButtons = document.querySelectorAll("[data-tool]");
+    const roomList = document.getElementById("roomList");
+    const clearButton = document.getElementById("clearCanvas");
+    const undoButton = document.getElementById("undoLast");
+
+    function setActiveTool(tool) {
+      activeTool = tool;
+      toolButtons.forEach((button) => {
+        if (button.dataset.tool === tool) {
+          button.classList.add("active");
+        } else {
+          button.classList.remove("active");
+        }
+      });
+    }
+
+    toolButtons.forEach((button) => {
+      button.addEventListener("click", () => setActiveTool(button.dataset.tool));
+    });
+
+    function snapToGrid(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (clientX - rect.left) * scaleX;
+      const y = (clientY - rect.top) * scaleY;
+      return {
+        x: Math.round(x / gridSize) * gridSize,
+        y: Math.round(y / gridSize) * gridSize,
+      };
+    }
+
+    function drawGrid() {
+      ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = "#e9ecef";
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(canvas.width, y + 0.5);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function renderRooms() {
+      ctx.save();
+      rooms.forEach((room) => {
+        ctx.fillStyle = "rgba(13, 110, 253, 0.15)";
+        ctx.strokeStyle = "rgba(13, 110, 253, 0.6)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(room.x, room.y, room.width, room.height);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#0d6efd";
+        ctx.font = "14px sans-serif";
+        ctx.fillText(room.name, room.x + 10, room.y + 20);
+      });
+      ctx.restore();
+    }
+
+    function renderWalls() {
+      ctx.save();
+      ctx.strokeStyle = "#343a40";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      walls.forEach((wall) => {
+        ctx.beginPath();
+        ctx.moveTo(wall.start.x, wall.start.y);
+        ctx.lineTo(wall.end.x, wall.end.y);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    function renderPreview() {
+      if (!isDrawing || !startPoint || !previewPoint) {
+        return;
+      }
+      ctx.save();
+      if (activeTool === "wall") {
+        ctx.strokeStyle = "rgba(13, 110, 253, 0.8)";
+        ctx.lineWidth = 4;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(startPoint.x, startPoint.y);
+        ctx.lineTo(previewPoint.x, previewPoint.y);
+        ctx.stroke();
+      } else if (activeTool === "room") {
+        const width = previewPoint.x - startPoint.x;
+        const height = previewPoint.y - startPoint.y;
+        if (width !== 0 && height !== 0) {
+          ctx.fillStyle = "rgba(25, 135, 84, 0.2)";
+          ctx.strokeStyle = "rgba(25, 135, 84, 0.8)";
+          ctx.setLineDash([10, 8]);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.rect(startPoint.x, startPoint.y, width, height);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    function render() {
+      drawGrid();
+      renderRooms();
+      renderWalls();
+      renderPreview();
+    }
+
+    function updateRoomList() {
+      roomList.innerHTML = "";
+      if (rooms.length === 0) {
+        const empty = document.createElement("li");
+        empty.className = "list-group-item text-muted";
+        empty.textContent = "Draw a room to see it listed here.";
+        roomList.appendChild(empty);
+        return;
+      }
+
+      rooms.forEach((room, index) => {
+        const li = document.createElement("li");
+        li.className = "list-group-item d-flex justify-content-between align-items-center";
+        const widthUnits = Math.round((room.width / gridSize) * 100) / 100;
+        const heightUnits = Math.round((room.height / gridSize) * 100) / 100;
+        li.innerHTML = `<span><strong>${room.name}</strong></span><span class="text-muted">${widthUnits} × ${heightUnits} grid units</span>`;
+        li.dataset.index = index;
+        roomList.appendChild(li);
+      });
+    }
+
+    function handlePointerDown(event) {
+      event.preventDefault();
+      isDrawing = true;
+      startPoint = snapToGrid(event.clientX, event.clientY);
+      previewPoint = { ...startPoint };
+      render();
+    }
+
+    function handlePointerMove(event) {
+      if (!isDrawing) {
+        return;
+      }
+      previewPoint = snapToGrid(event.clientX, event.clientY);
+      render();
+    }
+
+    function createWall(endPoint) {
+      if (!startPoint || (startPoint.x === endPoint.x && startPoint.y === endPoint.y)) {
+        return;
+      }
+      walls.push({ start: { ...startPoint }, end: { ...endPoint } });
+    }
+
+    function createRoom(endPoint) {
+      if (!startPoint || startPoint.x === endPoint.x || startPoint.y === endPoint.y) {
+        return;
+      }
+      const x = Math.min(startPoint.x, endPoint.x);
+      const y = Math.min(startPoint.y, endPoint.y);
+      const width = Math.abs(endPoint.x - startPoint.x);
+      const height = Math.abs(endPoint.y - startPoint.y);
+      const defaultName = `Room ${rooms.length + 1}`;
+      const enteredName = window.prompt("Name this room", defaultName);
+      if (enteredName === null) {
+        return;
+      }
+      const name = enteredName.trim() || defaultName;
+      rooms.push({ name, x, y, width, height });
+      updateRoomList();
+    }
+
+    function handlePointerUp(event) {
+      if (!isDrawing) {
+        return;
+      }
+      const endPoint = snapToGrid(event.clientX, event.clientY);
+      if (activeTool === "wall") {
+        createWall(endPoint);
+      } else {
+        createRoom(endPoint);
+      }
+      isDrawing = false;
+      startPoint = null;
+      previewPoint = null;
+      render();
+    }
+
+    function handlePointerLeave() {
+      if (isDrawing) {
+        isDrawing = false;
+        startPoint = null;
+        previewPoint = null;
+        render();
+      }
+    }
+
+    canvas.addEventListener("mousedown", handlePointerDown);
+    canvas.addEventListener("mousemove", handlePointerMove);
+    canvas.addEventListener("mouseup", handlePointerUp);
+    canvas.addEventListener("mouseleave", handlePointerLeave);
+
+    canvas.addEventListener("touchstart", (event) => {
+      const touch = event.touches[0];
+      handlePointerDown(touch);
+    });
+    canvas.addEventListener("touchmove", (event) => {
+      const touch = event.touches[0];
+      handlePointerMove(touch);
+    });
+    canvas.addEventListener("touchend", (event) => {
+      const touch = event.changedTouches[0];
+      handlePointerUp(touch);
+    });
+    canvas.addEventListener("touchcancel", handlePointerLeave);
+
+    clearButton.addEventListener("click", () => {
+      walls.length = 0;
+      rooms.length = 0;
+      updateRoomList();
+      render();
+    });
+
+    undoButton.addEventListener("click", () => {
+      if (activeTool === "wall" && walls.length) {
+        walls.pop();
+      } else if (activeTool === "room" && rooms.length) {
+        rooms.pop();
+        updateRoomList();
+      } else if (walls.length) {
+        walls.pop();
+      } else if (rooms.length) {
+        rooms.pop();
+        updateRoomList();
+      }
+      render();
+    });
+
+    window.addEventListener("resize", render);
+
+    updateRoomList();
+    render();
+  })();
+</script>
+{% endblock %}

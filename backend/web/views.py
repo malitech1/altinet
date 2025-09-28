@@ -8,3 +8,9 @@ from django.shortcuts import render
 def home(request):
     """Render the main dashboard once the user is authenticated."""
     return render(request, "web/home.html")
+
+
+@login_required
+def builder(request):
+    """Display the interactive home builder canvas."""
+    return render(request, "web/builder.html")

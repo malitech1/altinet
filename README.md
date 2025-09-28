@@ -19,6 +19,8 @@ Django backend for dashboards and historical analysis.
 - **ROS→Django bridge** streaming events, tracks, presence and face
   snapshots to the web
   stack with privacy-aware buffering.
+- **Bootstrap web dashboard** served directly from Django with login and
+  refreshed admin tooling.
 
 ## Repository layout
 
@@ -26,6 +28,7 @@ Django backend for dashboards and historical analysis.
 - `assets/models`: ONNX models (download `yolov8n.onnx` here).
 - `assets/calibration`: Room calibration files (homography, ROI, etc.).
 - `docs`: Architecture notes, ADRs and generated API docs.
+- `backend/web`: Lightweight Django views, templates and tests for the UI.
 
 ## Getting started
 
@@ -37,7 +40,18 @@ Django backend for dashboards and historical analysis.
    pip install -r requirements.txt
    ```
 
-2. Build the ROS 2 workspace (requires ROS 2 Foxy/Humble and `colcon`):
+2. Prepare the Django database and start the web interface:
+
+   ```bash
+   python backend/manage.py migrate
+   python backend/manage.py createsuperuser  # optional but recommended
+   python backend/manage.py runserver
+   ```
+
+   The UI is served from Django and is available at
+   http://127.0.0.1:8000/ with the admin at http://127.0.0.1:8000/admin/.
+
+3. Build the ROS 2 workspace (requires ROS 2 Foxy/Humble and `colcon`):
 
    ```bash
    cd ros2_ws
@@ -45,7 +59,7 @@ Django backend for dashboards and historical analysis.
    source install/setup.bash
    ```
 
-3. Launch the full stack for a single room:
+4. Launch the full stack for a single room:
 
    ```bash
    ros2 launch altinet altinet_full_system.launch.py room_id:=living_room
@@ -63,13 +77,13 @@ Django backend for dashboards and historical analysis.
 
   The detector node automatically loads the packaged YOLO configuration. Override the path with ``-p config:=/custom/path.yaml`` if you need a different model setup.
 
-4. Regenerate documentation:
+5. Regenerate documentation:
 
    ```bash
    make docs
    ```
 
-5. Run the offline demo (requires a recorded video):
+6. Run the offline demo (requires a recorded video):
 
    ```bash
    python scripts/run_demo.py path/to/video.mp4 --room living_room

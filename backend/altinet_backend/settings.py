@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "channels",
     "spaces",
+    "web",
 ]
 
 MIDDLEWARE = [
@@ -101,6 +102,9 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "static"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LOGIN_REDIRECT_URL = "web:home"
+LOGOUT_REDIRECT_URL = "login"
 
 # REST Framework
 REST_FRAMEWORK = {

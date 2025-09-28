@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="admin-dashboard-grid">
+  {% for app in app_list %}
+  <section class="admin-dashboard-card">
+    <h2>{{ app.name }}</h2>
+    <ul>
+      {% for model in app.models %}
+      <li>
+        <a href="{{ model.admin_url }}">{{ model.name }}</a>
+        {% if model.perms.add %}
+        <a href="{{ model.add_url }}" class="badge">{% trans 'Add' %}</a>
+        {% endif %}
+        {% if model.perms.change %}
+        <a href="{{ model.admin_url }}" class="badge">{% trans 'View' %}</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% empty %}
+  <p class="lead">{% trans "You don't have access to any modules." %}</p>
+  {% endfor %}
+</div>
+{% endblock %}

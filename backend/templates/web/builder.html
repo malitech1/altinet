@@ -42,13 +42,69 @@
             </button>
           </div>
         </div>
-        <div class="border rounded position-relative overflow-hidden">
+        <div class="border rounded position-relative" id="builderCanvasContainer">
           <canvas
             id="builderCanvas"
             width="900"
             height="600"
             class="w-100 h-auto"
           ></canvas>
+          <div
+            id="wallEditor"
+            class="position-absolute bg-white border rounded shadow-sm p-3"
+            hidden
+          >
+            <div class="d-flex align-items-start justify-content-between mb-2">
+              <div>
+                <h3 class="h6 mb-1">Wall settings</h3>
+                <p class="small text-muted mb-0">Fine-tune the selected wall.</p>
+              </div>
+              <button
+                type="button"
+                class="btn-close"
+                aria-label="Close wall settings"
+                id="closeWallEditor"
+              ></button>
+            </div>
+            <div class="mb-2">
+              <label
+                for="wallLengthInput"
+                class="form-label small text-uppercase fw-semibold text-secondary"
+              >
+                Length (mm)
+              </label>
+              <input
+                type="number"
+                class="form-control form-control-sm"
+                id="wallLengthInput"
+                min="1"
+                step="1"
+              />
+            </div>
+            <div class="mb-3">
+              <label
+                for="wallAngleInput"
+                class="form-label small text-uppercase fw-semibold text-secondary"
+              >
+                Angle (°)
+              </label>
+              <input
+                type="number"
+                class="form-control form-control-sm"
+                id="wallAngleInput"
+                step="0.1"
+                min="0"
+                max="359.9"
+              />
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm w-100"
+              id="deleteWallButton"
+            >
+              Delete wall
+            </button>
+          </div>
         </div>
         <div class="d-flex flex-column flex-lg-row gap-3 mt-3">
           <div class="flex-grow-1">
@@ -103,6 +159,8 @@
     const gridSize = 30;
     const storageKey = "altinet-floorplan";
     const defaultUnitScale = 0.5; // metres per grid unit
+    const mmPerGridUnit = defaultUnitScale * 1000;
+    const mmPerPixel = mmPerGridUnit / gridSize;
     const syncEndpoint = "/api/floorplans/render/";
     const syncDelayMs = 1500;
     let lastUpdatedAt = null;
@@ -118,7 +176,14 @@
     let startPoint = null;
     let previewPoint = null;
     let activeTool = "wall";
+    let selectedWallIndex = null;
 
+    const canvasContainer = document.getElementById("builderCanvasContainer");
+    const wallEditor = document.getElementById("wallEditor");
+    const wallLengthInput = document.getElementById("wallLengthInput");
+    const wallAngleInput = document.getElementById("wallAngleInput");
+    const deleteWallButton = document.getElementById("deleteWallButton");
+    const closeWallEditorButton = document.getElementById("closeWallEditor");
     const toolButtons = document.querySelectorAll("[data-tool]");
     const roomList = document.getElementById("roomList");
     const clearButton = document.getElementById("clearCanvas");
@@ -237,6 +302,10 @@
           button.classList.remove("active");
         }
       });
+      if (tool !== "wall") {
+        clearSelectedWall();
+      }
+      render();
     }
 
     toolButtons.forEach((button) => {
@@ -320,6 +389,7 @@
       if (!level) {
         return;
       }
+      clearSelectedWall();
       activeLevelId = levelId;
       levelNameInput.value = level.name;
       activeLevelBadge.textContent = level.name;
@@ -356,6 +426,192 @@
         x: Math.round(x / gridSize) * gridSize,
         y: Math.round(y / gridSize) * gridSize,
       };
+    }
+
+    function getCanvasPoint(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (clientX - rect.left) * scaleX;
+      const y = (clientY - rect.top) * scaleY;
+      return { x, y };
+    }
+
+    function distanceToSegment(point, start, end) {
+      if (!start || !end) {
+        return Number.POSITIVE_INFINITY;
+      }
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      if (dx === 0 && dy === 0) {
+        return Math.hypot(point.x - start.x, point.y - start.y);
+      }
+      const t = Math.max(
+        0,
+        Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)),
+      );
+      const projX = start.x + t * dx;
+      const projY = start.y + t * dy;
+      return Math.hypot(point.x - projX, point.y - projY);
+    }
+
+    function findWallNearPoint(point, threshold = 12) {
+      const level = getActiveLevel();
+      if (!level) {
+        return null;
+      }
+      for (let index = level.walls.length - 1; index >= 0; index -= 1) {
+        const wall = level.walls[index];
+        if (!wall || !wall.start || !wall.end) {
+          continue;
+        }
+        const distance = distanceToSegment(point, wall.start, wall.end);
+        if (distance <= threshold) {
+          return { wall, index };
+        }
+      }
+      return null;
+    }
+
+    function getWallLengthMm(wall) {
+      if (!wall || !wall.start || !wall.end) {
+        return 0;
+      }
+      const dx = wall.end.x - wall.start.x;
+      const dy = wall.end.y - wall.start.y;
+      return Math.hypot(dx, dy) * mmPerPixel;
+    }
+
+    function getWallAngleDeg(wall) {
+      if (!wall || !wall.start || !wall.end) {
+        return 0;
+      }
+      let angleDeg = (Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x) * 180) / Math.PI;
+      if (angleDeg < 0) {
+        angleDeg += 360;
+      }
+      return angleDeg;
+    }
+
+    function hideWallEditor() {
+      if (!wallEditor) {
+        return;
+      }
+      wallEditor.setAttribute("hidden", "");
+    }
+
+    function positionWallEditor(wall) {
+      if (!wallEditor || !canvasContainer || wallEditor.hasAttribute("hidden")) {
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const containerRect = canvasContainer.getBoundingClientRect();
+      const scaleX = rect.width / canvas.width;
+      const scaleY = rect.height / canvas.height;
+      const midX = (wall.start.x + wall.end.x) / 2;
+      const midY = (wall.start.y + wall.end.y) / 2;
+      const left = midX * scaleX + (rect.left - containerRect.left);
+      const top = midY * scaleY + (rect.top - containerRect.top);
+      wallEditor.style.left = `${left}px`;
+      wallEditor.style.top = `${top}px`;
+      wallEditor.style.transform = "translate(-50%, -110%)";
+      wallEditor.style.zIndex = "10";
+    }
+
+    function updateWallEditor(options = {}) {
+      const { focusLength = false } = options;
+      const level = getActiveLevel();
+      if (
+        selectedWallIndex === null ||
+        !level ||
+        !level.walls[selectedWallIndex] ||
+        !level.walls[selectedWallIndex].start ||
+        !level.walls[selectedWallIndex].end
+      ) {
+        hideWallEditor();
+        return;
+      }
+      const wall = level.walls[selectedWallIndex];
+      const lengthMm = getWallLengthMm(wall);
+      if (wallLengthInput && Number.isFinite(lengthMm)) {
+        wallLengthInput.value = Math.max(0, Math.round(lengthMm));
+      }
+      const angleDeg = getWallAngleDeg(wall);
+      if (wallAngleInput && Number.isFinite(angleDeg)) {
+        wallAngleInput.value = Math.round(angleDeg * 10) / 10;
+      }
+      wallEditor.removeAttribute("hidden");
+      positionWallEditor(wall);
+      if (focusLength && wallLengthInput) {
+        wallLengthInput.focus();
+        wallLengthInput.select();
+      }
+    }
+
+    function clearSelectedWall() {
+      selectedWallIndex = null;
+      hideWallEditor();
+    }
+
+    function selectWall(index, options = {}) {
+      const level = getActiveLevel();
+      if (!level || index < 0 || index >= level.walls.length) {
+        clearSelectedWall();
+        render();
+        return;
+      }
+      selectedWallIndex = index;
+      render();
+      updateWallEditor(options);
+    }
+
+    function updateSelectedWallGeometry({ lengthMm = null, angleDeg = null } = {}) {
+      const level = getActiveLevel();
+      if (
+        selectedWallIndex === null ||
+        !level ||
+        !level.walls[selectedWallIndex] ||
+        !level.walls[selectedWallIndex].start ||
+        !level.walls[selectedWallIndex].end
+      ) {
+        return;
+      }
+      const wall = level.walls[selectedWallIndex];
+      const currentLength = getWallLengthMm(wall);
+      const newLengthMm = lengthMm !== null ? lengthMm : currentLength;
+      if (!Number.isFinite(newLengthMm) || newLengthMm <= 0) {
+        return;
+      }
+      const currentAngle = getWallAngleDeg(wall);
+      const desiredAngleDeg =
+        angleDeg !== null && Number.isFinite(angleDeg) ? ((angleDeg % 360) + 360) % 360 : currentAngle;
+      const angleRad = (desiredAngleDeg * Math.PI) / 180;
+      const lengthPx = newLengthMm / mmPerPixel;
+      const endX = wall.start.x + Math.cos(angleRad) * lengthPx;
+      const endY = wall.start.y + Math.sin(angleRad) * lengthPx;
+      wall.end = { x: endX, y: endY };
+      persistState();
+      render();
+      updateWallEditor();
+    }
+
+    function handleWallRemoval(removedIndex) {
+      const level = getActiveLevel();
+      if (selectedWallIndex === null) {
+        return;
+      }
+      if (!level || level.walls.length === 0) {
+        clearSelectedWall();
+        return;
+      }
+      if (selectedWallIndex > removedIndex) {
+        selectedWallIndex -= 1;
+      } else if (selectedWallIndex === removedIndex && selectedWallIndex >= level.walls.length) {
+        selectedWallIndex = level.walls.length - 1;
+      }
+      if (selectedWallIndex < 0 || selectedWallIndex >= level.walls.length) {
+        clearSelectedWall();
+      }
     }
 
     function drawGrid() {
@@ -402,7 +658,6 @@
 
     function renderWalls() {
       ctx.save();
-      ctx.strokeStyle = "#343a40";
       ctx.lineWidth = 4;
       ctx.lineCap = "round";
       const level = getActiveLevel();
@@ -410,11 +665,23 @@
         ctx.restore();
         return;
       }
-      level.walls.forEach((wall) => {
+      level.walls.forEach((wall, index) => {
+        if (!wall || !wall.start || !wall.end) {
+          return;
+        }
         ctx.beginPath();
+        ctx.strokeStyle = index === selectedWallIndex ? "#0d6efd" : "#343a40";
         ctx.moveTo(wall.start.x, wall.start.y);
         ctx.lineTo(wall.end.x, wall.end.y);
         ctx.stroke();
+        if (index === selectedWallIndex) {
+          ctx.fillStyle = "#0d6efd";
+          [wall.start, wall.end].forEach((point) => {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 6, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
       });
       ctx.restore();
     }
@@ -454,6 +721,12 @@
       renderRooms();
       renderWalls();
       renderPreview();
+      if (selectedWallIndex !== null) {
+        const level = getActiveLevel();
+        if (level && level.walls[selectedWallIndex]) {
+          positionWallEditor(level.walls[selectedWallIndex]);
+        }
+      }
     }
 
     function updateRoomList() {
@@ -479,7 +752,21 @@
     }
 
     function handlePointerDown(event) {
-      event.preventDefault();
+      if (event.preventDefault) {
+        event.preventDefault();
+      }
+      if (activeTool === "wall") {
+        const canvasPoint = getCanvasPoint(event.clientX, event.clientY);
+        const hit = findWallNearPoint(canvasPoint);
+        if (hit) {
+          isDrawing = false;
+          startPoint = null;
+          previewPoint = null;
+          selectWall(hit.index);
+          return;
+        }
+      }
+      clearSelectedWall();
       isDrawing = true;
       startPoint = snapToGrid(event.clientX, event.clientY);
       previewPoint = { ...startPoint };
@@ -504,6 +791,7 @@
       }
       level.walls.push({ start: { ...startPoint }, end: { ...endPoint } });
       persistState();
+      selectWall(level.walls.length - 1, { focusLength: true });
     }
 
     function createRoom(endPoint) {
@@ -573,11 +861,60 @@
     });
     canvas.addEventListener("touchcancel", handlePointerLeave);
 
+    if (wallLengthInput) {
+      wallLengthInput.addEventListener("change", () => {
+        const value = parseFloat(wallLengthInput.value);
+        if (Number.isFinite(value) && value > 0) {
+          updateSelectedWallGeometry({ lengthMm: value });
+        } else {
+          updateWallEditor();
+        }
+      });
+    }
+
+    if (wallAngleInput) {
+      wallAngleInput.addEventListener("change", () => {
+        const value = parseFloat(wallAngleInput.value);
+        if (Number.isFinite(value)) {
+          updateSelectedWallGeometry({ angleDeg: value });
+        } else {
+          updateWallEditor();
+        }
+      });
+    }
+
+    if (deleteWallButton) {
+      deleteWallButton.addEventListener("click", () => {
+        const level = getActiveLevel();
+        if (selectedWallIndex === null || !level) {
+          return;
+        }
+        const previousIndex = selectedWallIndex;
+        level.walls.splice(previousIndex, 1);
+        persistState();
+        if (level.walls.length > 0) {
+          const nextIndex = Math.min(previousIndex, level.walls.length - 1);
+          selectWall(nextIndex);
+        } else {
+          clearSelectedWall();
+          render();
+        }
+      });
+    }
+
+    if (closeWallEditorButton) {
+      closeWallEditorButton.addEventListener("click", () => {
+        clearSelectedWall();
+        render();
+      });
+    }
+
     clearButton.addEventListener("click", () => {
       const level = getActiveLevel();
       if (!level) {
         return;
       }
+      clearSelectedWall();
       level.walls.length = 0;
       level.rooms.length = 0;
       updateRoomList();
@@ -590,22 +927,44 @@
       if (!level) {
         return;
       }
+      let changed = false;
       if (activeTool === "wall" && level.walls.length) {
+        const removedIndex = level.walls.length - 1;
         level.walls.pop();
+        handleWallRemoval(removedIndex);
+        changed = true;
       } else if (activeTool === "room" && level.rooms.length) {
         level.rooms.pop();
         updateRoomList();
+        changed = true;
       } else if (level.walls.length) {
+        const removedIndex = level.walls.length - 1;
         level.walls.pop();
+        handleWallRemoval(removedIndex);
+        changed = true;
       } else if (level.rooms.length) {
         level.rooms.pop();
         updateRoomList();
+        changed = true;
       }
-      render();
-      persistState();
+      if (changed) {
+        render();
+        if (selectedWallIndex !== null) {
+          updateWallEditor();
+        } else {
+          hideWallEditor();
+        }
+        persistState();
+      }
     });
 
     window.addEventListener("resize", render);
+
+    window.addEventListener("resize", () => {
+      if (selectedWallIndex !== null) {
+        updateWallEditor();
+      }
+    });
 
     loadState();
     updateLevelTabs();

@@ -1,0 +1,21 @@
+{% extends "web/base.html" %}
+
+{% block title %}Altinet Dashboard{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="card-title h3 mb-3">Welcome to Altinet</h1>
+        <p class="card-text">
+          Use the navigation bar to access administrative features or browse the
+          Django admin for detailed configuration. This lightweight interface is
+          intentionally simple so you can extend it as your deployment grows.
+        </p>
+        <a class="btn btn-primary" href="{% url 'admin:index' %}">Open admin</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

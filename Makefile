@@ -5,7 +5,6 @@ DJANGO_MANAGE = $(PYTHON) backend/manage.py
 
 setup:
 $(PYTHON) -m pip install -r requirements.txt
-@if [ -f frontend/package.json ]; then cd frontend && npm install; fi
 
 run:
 $(DJANGO_MANAGE) migrate
@@ -16,7 +15,6 @@ pytest
 
 lint:
 flake8 backend
-@if [ -d frontend ]; then cd frontend && npm run lint --if-present; fi
 
 format:
 black backend

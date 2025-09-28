@@ -1,0 +1,46 @@
+{% extends "web/base.html" %}
+
+{% block title %}Sign in | Altinet{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="h4 mb-4 text-center">Sign in</h1>
+        {% if form.errors %}
+        <div class="alert alert-danger" role="alert">
+          Please check your username and password and try again.
+        </div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="id_username">Username</label>
+            <input
+              type="text"
+              name="username"
+              class="form-control"
+              id="id_username"
+              autofocus
+              required
+              value="{{ form.username.value|default:'' }}"
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_password">Password</label>
+            <input
+              type="password"
+              name="password"
+              class="form-control"
+              id="id_password"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Sign in</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

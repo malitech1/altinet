@@ -15,23 +15,25 @@ shown on the authenticated dashboard home page.
    downloaded with every wall, room and level as well as the grid metadata
    needed by Blender.
 
-## 2. Generate the 3D model with Blender
+## 2. Automatic 3D model generation
 
-1. Copy the exported JSON file into the repository (for example,
-   `assets/floorplans/latest.json`).
-2. From the repository root, run Blender in background mode with the helper
-   script:
+The builder now syncs every change to the Django backend. The API writes the
+latest floorplan JSON to `assets/floorplans/latest.json` and regenerates the
+OBJ served to the dashboard (`backend/web/static/web/models/home.obj`) using a
+lightweight Python renderer. Reload the authenticated home page to see the
+updated geometry moments after saving in the builder.
 
-   ```bash
-   blender --background --python scripts/generate_floorplan.py -- \
-       --plan assets/floorplans/latest.json \
-       --out assets/floorplans/latest.blend \
-       --obj-out backend/web/static/web/models/home.obj
-   ```
+### Optional: manual Blender exports
 
-   The script will recreate every level by instancing floor slabs for the rooms
-   and extruded walls for the wall segments. The `--obj-out` option writes an
-   OBJ file in the static assets folder that the dashboard viewer consumes.
+If you need to iterate with Blender directly, use **Export plan for Blender**
+and follow the original workflow:
+
+```bash
+blender --background --python scripts/generate_floorplan.py -- \
+    --plan assets/floorplans/latest.json \
+    --out assets/floorplans/latest.blend \
+    --obj-out backend/web/static/web/models/home.obj
+```
 
 ## 3. Review the model in the dashboard
 

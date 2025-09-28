@@ -351,3 +351,49 @@ class FaceSnapshotSerializer(serializers.ModelSerializer):
             if embedding:
                 validated_data["embedding"] = embedding
         return super().create(validated_data)
+class FloorplanPointSerializer(serializers.Serializer):
+    x = serializers.FloatField()
+    y = serializers.FloatField()
+
+
+class FloorplanWallSerializer(serializers.Serializer):
+    start = FloorplanPointSerializer()
+    end = FloorplanPointSerializer()
+
+
+class FloorplanRoomExportSerializer(serializers.Serializer):
+    name = serializers.CharField(allow_blank=True, default="")
+    x = serializers.FloatField()
+    y = serializers.FloatField()
+    width = serializers.FloatField()
+    height = serializers.FloatField()
+
+
+class FloorplanLevelSerializer(serializers.Serializer):
+    index = serializers.IntegerField(required=False)
+    id = serializers.CharField(allow_blank=True, required=False)
+    name = serializers.CharField(allow_blank=True, required=False)
+    walls = FloorplanWallSerializer(many=True, required=False)
+    rooms = FloorplanRoomExportSerializer(many=True, required=False)
+
+    def validate_walls(self, value):
+        return value or []
+
+    def validate_rooms(self, value):
+        return value or []
+
+
+class FloorplanUploadSerializer(serializers.Serializer):
+    schema = serializers.CharField(allow_blank=True, required=False)
+    version = serializers.IntegerField(required=False)
+    exportedAt = serializers.DateTimeField(required=False)
+    updatedAt = serializers.DateTimeField(required=False)
+    gridSize = serializers.FloatField(required=False, default=30.0)
+    unitScale = serializers.FloatField(required=False, default=0.5)
+    levels = FloorplanLevelSerializer(many=True)
+
+    def validate_levels(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one level is required")
+        return value
+

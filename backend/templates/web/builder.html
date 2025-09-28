@@ -70,8 +70,8 @@
           <h2 class="h6 fw-semibold mb-2">Workflow</h2>
           <ol class="mb-0 small ps-3">
             <li>Sketch each storey of the property using the tools above and switch levels as needed.</li>
-            <li>Export the floorplan once you are happy. The export contains geometry that Blender can read.</li>
-            <li>Open the exported JSON in Blender with <code>scripts/generate_floorplan.py</code> to create the 3D model shown on the dashboard.</li>
+            <li>Your changes sync to the backend automatically, triggering a fresh 3D model build for the dashboard viewer.</li>
+            <li>Use the export button if you still need a JSON copy for external tools or manual Blender tweaks.</li>
           </ol>
         </div>
       </div>
@@ -88,7 +88,7 @@
         <div class="mt-3">
           <button type="button" class="btn btn-primary w-100" id="exportPlan">Export plan for Blender</button>
           <p class="small text-muted mt-2 mb-0">
-            Exports to <code>.json</code> with every wall and room per level. Import it via Blender: <code>blender --python scripts/generate_floorplan.py -- --plan &lt;file&gt; --obj-out assets/home.obj</code>.
+            Need an offline copy? Export to <code>.json</code> for Blender or archiving &mdash; the backend already rebuilds the OBJ automatically.
           </p>
         </div>
       </div>
@@ -103,8 +103,17 @@
     const gridSize = 30;
     const storageKey = "altinet-floorplan";
     const defaultUnitScale = 0.5; // metres per grid unit
+    const syncEndpoint = "/api/floorplans/render/";
+    const syncDelayMs = 1500;
+    let lastUpdatedAt = null;
+    let syncTimeoutId = null;
+    let queuedPayload = null;
+    let queuedHash = null;
+    let inFlight = false;
+    let lastSyncedHash = null;
     let levels = [];
     let activeLevelId = null;
+    let needsInitialPersist = false;
     let isDrawing = false;
     let startPoint = null;
     let previewPoint = null;
@@ -121,6 +130,103 @@
     const deleteLevelButton = document.getElementById("deleteLevel");
     const exportPlanButton = document.getElementById("exportPlan");
     const activeLevelBadge = document.getElementById("activeLevelLabel");
+
+    function getCsrfToken() {
+      const name = "csrftoken=";
+      const cookies = document.cookie ? document.cookie.split(";") : [];
+      for (const cookie of cookies) {
+        const trimmed = cookie.trim();
+        if (trimmed.startsWith(name)) {
+          return decodeURIComponent(trimmed.slice(name.length));
+        }
+      }
+      return "";
+    }
+
+    function buildPlanPayload({ timestamp = null, includeExportMetadata = false } = {}) {
+      const updatedTimestamp = timestamp || lastUpdatedAt || new Date().toISOString();
+      const payload = {
+        schema: "altinet-floorplan",
+        version: 1,
+        updatedAt: updatedTimestamp,
+        gridSize,
+        unitScale: defaultUnitScale,
+        levels: levels.map((level, index) => ({
+          index,
+          id: level.id,
+          name: level.name,
+          walls: level.walls,
+          rooms: level.rooms,
+        })),
+      };
+      if (includeExportMetadata) {
+        payload.exportedAt = new Date().toISOString();
+      }
+      return payload;
+    }
+
+    function resetSyncTimer() {
+      if (syncTimeoutId) {
+        window.clearTimeout(syncTimeoutId);
+      }
+      syncTimeoutId = window.setTimeout(sendQueuedPayload, syncDelayMs);
+    }
+
+    function sendQueuedPayload() {
+      if (!queuedPayload) {
+        return;
+      }
+      const payload = queuedPayload;
+      const payloadHash = queuedHash;
+      queuedPayload = null;
+      queuedHash = null;
+      syncTimeoutId = null;
+      inFlight = true;
+      let succeeded = false;
+      fetch(syncEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrfToken(),
+        },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Sync failed with status ${response.status}`);
+          }
+          succeeded = true;
+          lastSyncedHash = payloadHash;
+        })
+        .catch((error) => {
+          console.warn("Could not sync floorplan to backend", error);
+        })
+        .finally(() => {
+          inFlight = false;
+          if (!succeeded && !queuedPayload) {
+            queuedPayload = payload;
+            queuedHash = payloadHash;
+          }
+          if (queuedPayload) {
+            resetSyncTimer();
+          }
+        });
+    }
+
+    function scheduleSync(timestamp) {
+      const payload = buildPlanPayload({ timestamp });
+      const serialized = JSON.stringify(payload);
+      if (serialized === lastSyncedHash || serialized === queuedHash) {
+        return;
+      }
+      queuedPayload = JSON.parse(serialized);
+      queuedHash = serialized;
+      if (inFlight) {
+        return;
+      }
+      resetSyncTimer();
+    }
 
     function setActiveTool(tool) {
       activeTool = tool;
@@ -160,6 +266,8 @@
           const initialLevel = createLevel("Level 1");
           levels = [initialLevel];
           activeLevelId = initialLevel.id;
+          lastUpdatedAt = new Date().toISOString();
+          needsInitialPersist = true;
           return;
         }
         const parsed = JSON.parse(stored);
@@ -174,30 +282,40 @@
         }));
         const storedActive = levels.find((level) => level.id === parsed.activeLevelId);
         activeLevelId = storedActive ? storedActive.id : levels[0].id;
+        lastUpdatedAt =
+          typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString();
+        needsInitialPersist = false;
       } catch (error) {
         console.warn("Could not load saved plan, resetting", error);
         const reset = createLevel("Level 1");
         levels = [reset];
         activeLevelId = reset.id;
+        lastUpdatedAt = new Date().toISOString();
+        needsInitialPersist = true;
         localStorage.removeItem(storageKey);
       }
     }
 
     function persistState() {
+      const updatedAt = new Date().toISOString();
+      lastUpdatedAt = updatedAt;
       const payload = {
         version: 1,
-        updatedAt: new Date().toISOString(),
+        updatedAt,
         activeLevelId,
         levels,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
+      needsInitialPersist = false;
+      scheduleSync(updatedAt);
     }
 
     function getActiveLevel() {
       return levels.find((level) => level.id === activeLevelId) || null;
     }
 
-    function setActiveLevel(levelId) {
+    function setActiveLevel(levelId, options = {}) {
+      const { persist = true } = options;
       const level = levels.find((item) => item.id === levelId);
       if (!level) {
         return;
@@ -208,7 +326,9 @@
       updateLevelTabs();
       updateRoomList();
       render();
-      persistState();
+      if (persist) {
+        persistState();
+      }
     }
 
     function updateLevelTabs() {
@@ -489,9 +609,15 @@
 
     loadState();
     updateLevelTabs();
-    setActiveLevel(activeLevelId);
+    setActiveLevel(activeLevelId, { persist: false });
     updateRoomList();
     render();
+
+    if (needsInitialPersist) {
+      persistState();
+    } else if (lastUpdatedAt) {
+      scheduleSync(lastUpdatedAt);
+    }
 
     levelNameInput.addEventListener("input", (event) => {
       const level = getActiveLevel();
@@ -552,20 +678,10 @@
     });
 
     exportPlanButton.addEventListener("click", () => {
-      const exportData = {
-        schema: "altinet-floorplan",
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        gridSize,
-        unitScale: defaultUnitScale,
-        levels: levels.map((level, index) => ({
-          index,
-          id: level.id,
-          name: level.name,
-          walls: level.walls,
-          rooms: level.rooms,
-        })),
-      };
+      const exportData = buildPlanPayload({
+        includeExportMetadata: true,
+        timestamp: lastUpdatedAt || new Date().toISOString(),
+      });
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: "application/json",
       });

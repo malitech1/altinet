@@ -14,7 +14,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Core configuration
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", get_random_secret_key())
-DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
+# Default to Django debug mode in development unless explicitly disabled via
+# the environment. This keeps `runserver` behaviour (like serving static files
+# from `backend/web/static`) without requiring developers to set
+# `DJANGO_DEBUG=true`.
+DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
 ALLOWED_HOSTS: list[str] = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
 # Applications

@@ -89,6 +89,13 @@ Django backend for dashboards and historical analysis.
    python scripts/run_demo.py path/to/video.mp4 --room living_room
    ```
 
+### Builder → Blender → Dashboard workflow
+
+The browser-based builder now supports multi-level plans, local persistence and
+a one-click export for Blender. Follow the detailed guide in
+[`docs/workflows/floorplan_pipeline.md`](docs/workflows/floorplan_pipeline.md)
+to go from a sketched plan to the OBJ that powers the 3D viewer on the home page.
+
 ### Production deployments
 
 The Django backend defaults to debug mode so local `runserver` instances serve

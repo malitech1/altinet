@@ -4,16 +4,32 @@
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-lg-8">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h1 class="card-title h3 mb-3">Welcome to Altinet</h1>
-        <p class="card-text">
-          Use the navigation bar to access administrative features or browse the
-          Django admin for detailed configuration. This lightweight interface is
-          intentionally simple so you can extend it as your deployment grows.
-        </p>
-        <a class="btn btn-primary" href="{% url 'admin:index' %}">Open admin</a>
+  <div class="col-12 col-xl-10">
+    <div class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-4 p-md-5 mb-4">
+      <div class="row align-items-center gy-4">
+        <div class="col-lg-5 text-lg-start text-center">
+          <h1 class="display-6 fw-semibold mb-3">Welcome home</h1>
+          <p class="text-muted mb-4">
+            This dashboard will soon feature a live 3D overview of your rooms and
+            connected appliances. Use the navigation to explore Altinet while the
+            visualisation comes together.
+          </p>
+          <a class="btn btn-primary btn-lg" href="{% url 'admin:index' %}">Open admin</a>
+        </div>
+        <div class="col-lg-7">
+          <div
+            class="placeholder-canvas bg-light rounded-4 border border-2 border-secondary-subtle d-flex align-items-center justify-content-center text-center text-muted"
+            style="min-height: 60vh; border-style: dashed"
+          >
+            <div>
+              <h2 class="h4 fw-semibold">3D exploded home view</h2>
+              <p class="mb-0">
+                A dynamic rendering of your home and appliance connectivity will
+                appear here soon.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

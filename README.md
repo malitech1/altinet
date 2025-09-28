@@ -89,6 +89,13 @@ Django backend for dashboards and historical analysis.
    python scripts/run_demo.py path/to/video.mp4 --room living_room
    ```
 
+### Production deployments
+
+The Django backend defaults to debug mode so local `runserver` instances serve
+static assets without extra configuration. When deploying to production
+environments you should explicitly disable debug behaviour by setting
+`DJANGO_DEBUG=false` in the deployment's environment configuration.
+
 ## Identity service walkthrough
 
 The identity service classifies each detection as a resident (`user`),

@@ -2,8 +2,62 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import json
 import pytest
+from django.contrib.auth.models import User
+
 from spaces.models import Camera, CameraCalibrationRun
+
+
+@pytest.mark.django_db
+def test_floorplan_render_endpoint(tmp_path, settings, api_client):
+    user = User.objects.create_user(username="builder", password="secret123")
+    api_client.force_authenticate(user=user)
+
+    plan_path = tmp_path / "plan.json"
+    obj_path = tmp_path / "home.obj"
+    settings.FLOORPLAN_PLAN_STORAGE_PATH = plan_path
+    settings.FLOORPLAN_OBJ_OUTPUT_PATH = obj_path
+
+    payload = {
+        "schema": "altinet-floorplan",
+        "version": 1,
+        "gridSize": 30,
+        "unitScale": 0.5,
+        "levels": [
+            {
+                "index": 0,
+                "id": "lvl-ground",
+                "name": "Ground",
+                "rooms": [
+                    {"name": "Living", "x": 0, "y": 0, "width": 60, "height": 45},
+                ],
+                "walls": [
+                    {"start": {"x": 0, "y": 0}, "end": {"x": 60, "y": 0}},
+                ],
+            }
+        ],
+    }
+
+    response = api_client.post(
+        "/api/floorplans/render/",
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 202
+    assert plan_path.exists()
+    assert obj_path.exists()
+
+    stored_plan = json.loads(plan_path.read_text())
+    assert stored_plan["levels"][0]["rooms"][0]["name"] == "Living"
+
+    lines = obj_path.read_text().splitlines()
+    assert any(line.startswith("v ") for line in lines)
+    assert any(line.startswith("f ") for line in lines)
+
+    assert response.data["rooms"] == 1
+    assert response.data["walls"] == 1
 
 
 @pytest.mark.django_db

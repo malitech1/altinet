@@ -115,6 +115,31 @@ LOGOUT_REDIRECT_URL = "login"
 # served asset without touching templates.
 HOME_MODEL_STATIC_PATH = os.environ.get("ALTINET_HOME_MODEL", "web/models/home.obj")
 
+# Floorplan automation
+REPO_ROOT = BASE_DIR.parent
+_default_plan_path = REPO_ROOT / "assets" / "floorplans" / "latest.json"
+_default_obj_path = BASE_DIR / "web" / "static" / HOME_MODEL_STATIC_PATH
+FLOORPLAN_PLAN_STORAGE_PATH = Path(
+    os.environ.get("ALTINET_FLOORPLAN_PLAN", str(_default_plan_path))
+)
+FLOORPLAN_OBJ_OUTPUT_PATH = Path(
+    os.environ.get("ALTINET_FLOORPLAN_OBJ", str(_default_obj_path))
+)
+FLOORPLAN_WALL_HEIGHT = float(os.environ.get("ALTINET_FLOORPLAN_WALL_HEIGHT", "3.0"))
+FLOORPLAN_WALL_THICKNESS = float(
+    os.environ.get("ALTINET_FLOORPLAN_WALL_THICKNESS", "0.2")
+)
+FLOORPLAN_STOREY_HEIGHT = float(os.environ.get("ALTINET_FLOORPLAN_STOREY_HEIGHT", "3.2"))
+FLOORPLAN_FLOOR_THICKNESS = float(
+    os.environ.get("ALTINET_FLOORPLAN_FLOOR_THICKNESS", "0.15")
+)
+FLOORPLAN_FALLBACK_WIDTH = float(
+    os.environ.get("ALTINET_FLOORPLAN_FALLBACK_WIDTH", "10.0")
+)
+FLOORPLAN_FALLBACK_DEPTH = float(
+    os.environ.get("ALTINET_FLOORPLAN_FALLBACK_DEPTH", "8.0")
+)
+
 # REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

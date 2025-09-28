@@ -9,6 +9,7 @@ from .views import (
     CameraViewSet,
     FaceEmbeddingViewSet,
     FaceSnapshotViewSet,
+    FloorplanRenderView,
     IdentityViewSet,
     RoomViewSet,
 )
@@ -21,5 +22,6 @@ router.register("face-embeddings", FaceEmbeddingViewSet)
 router.register("face-snapshots", FaceSnapshotViewSet)
 
 urlpatterns = [
+    path("floorplans/render/", FloorplanRenderView.as_view(), name="floorplan-render"),
     path("", include(router.urls)),
 ]

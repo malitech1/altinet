@@ -4,23 +4,56 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+import json
+
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .floorplan import FloorplanGenerator
 from .models import Camera, CameraCalibrationRun, FaceEmbedding, FaceSnapshot, Identity, Room
 from .ros_bridge import ROSBridgeClient
 from .serializers import (CalibrationCancelSerializer,
                           CalibrationStartSerializer,
                           CameraCalibrationRunSerializer, CameraSerializer,
                           CameraTestConnectionSerializer, FaceEmbeddingSerializer,
-                          FaceSnapshotSerializer, IdentitySerializer,
-                          RoomRecenterSerializer, RoomSerializer,
+                          FaceSnapshotSerializer, FloorplanUploadSerializer,
+                          IdentitySerializer, RoomRecenterSerializer, RoomSerializer,
                           SaveIntrinsicsSerializer)
+
+
+class FloorplanRenderView(APIView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+        serializer = FloorplanUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        plan_payload = json.loads(json.dumps(serializer.data))
+        generator = FloorplanGenerator(
+            plan_payload,
+            obj_output_path=settings.FLOORPLAN_OBJ_OUTPUT_PATH,
+            plan_storage_path=settings.FLOORPLAN_PLAN_STORAGE_PATH,
+            wall_height=settings.FLOORPLAN_WALL_HEIGHT,
+            wall_thickness=settings.FLOORPLAN_WALL_THICKNESS,
+            storey_height=settings.FLOORPLAN_STOREY_HEIGHT,
+            floor_thickness=settings.FLOORPLAN_FLOOR_THICKNESS,
+            fallback_width=settings.FLOORPLAN_FALLBACK_WIDTH,
+            fallback_depth=settings.FLOORPLAN_FALLBACK_DEPTH,
+        )
+        try:
+            result = generator.generate()
+        except ValueError as exc:  # invalid floorplan data
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result, status=status.HTTP_202_ACCEPTED)
 
 
 class RoomViewSet(viewsets.ModelViewSet):

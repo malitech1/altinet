@@ -110,6 +110,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL = "web:home"
 LOGOUT_REDIRECT_URL = "login"
 
+# Path to the OBJ model displayed on the dashboard viewer. Overridable via
+# ALTINET_HOME_MODEL environment variable so Blender exports can update the
+# served asset without touching templates.
+HOME_MODEL_STATIC_PATH = os.environ.get("ALTINET_HOME_MODEL", "web/models/home.obj")
+
 # REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

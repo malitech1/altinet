@@ -6,7 +6,23 @@
 <div class="row g-4">
   <div class="col-12 col-lg-8">
     <div class="card shadow-sm h-100">
-      <div class="card-header bg-dark text-white">Floorplan Builder</div>
+      <div class="card-header bg-dark text-white d-flex flex-column flex-xl-row gap-3 align-items-start align-items-xl-center justify-content-between">
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-semibold">Floorplan Builder</span>
+            <span class="badge text-bg-secondary" id="activeLevelLabel">Level 1</span>
+          </div>
+          <p class="small mb-0 text-white-50">
+            Switch between levels to sketch multi-storey layouts. Changes are saved locally in your browser.
+          </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <div class="btn-group" role="group" aria-label="Levels" id="levelTabs"></div>
+          <button type="button" class="btn btn-outline-light btn-sm" id="addLevel">
+            Add level
+          </button>
+        </div>
+      </div>
       <div class="card-body">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
           <div class="btn-group" role="group" aria-label="Builder tools">
@@ -22,7 +38,7 @@
               Undo last
             </button>
             <button type="button" class="btn btn-outline-danger" id="clearCanvas">
-              Clear all
+              Clear level
             </button>
           </div>
         </div>
@@ -34,11 +50,30 @@
             class="w-100 h-auto"
           ></canvas>
         </div>
-        <p class="text-muted small mt-3 mb-0">
-          Use the wall tool to draw structural lines that snap to the grid. Switch to
-          the room tool to drag out rectangular rooms and give them names. All data is
-          kept in your browser for now.
-        </p>
+        <div class="d-flex flex-column flex-lg-row gap-3 mt-3">
+          <div class="flex-grow-1">
+            <label for="levelName" class="form-label small text-uppercase fw-semibold text-secondary">
+              Active level name
+            </label>
+            <input type="text" class="form-control" id="levelName" placeholder="e.g. Ground floor" maxlength="40" />
+          </div>
+          <div class="flex-shrink-0 d-flex flex-column gap-2">
+            <button type="button" class="btn btn-outline-secondary" id="duplicateLevel">
+              Duplicate level
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="deleteLevel">
+              Delete level
+            </button>
+          </div>
+        </div>
+        <div class="alert alert-info mt-3 mb-0" role="alert">
+          <h2 class="h6 fw-semibold mb-2">Workflow</h2>
+          <ol class="mb-0 small ps-3">
+            <li>Sketch each storey of the property using the tools above and switch levels as needed.</li>
+            <li>Export the floorplan once you are happy. The export contains geometry that Blender can read.</li>
+            <li>Open the exported JSON in Blender with <code>scripts/generate_floorplan.py</code> to create the 3D model shown on the dashboard.</li>
+          </ol>
+        </div>
       </div>
     </div>
   </div>
@@ -47,10 +82,15 @@
       <div class="card-header bg-dark text-white">Rooms</div>
       <div class="card-body d-flex flex-column">
         <p class="text-muted small">
-          Rooms you define are listed here with their grid dimensions. Use this as a
-          quick reference while sketching your layout.
+          Rooms you define are listed here with their grid dimensions. Use this as a quick reference while sketching your layout.
         </p>
         <ul class="list-group flex-grow-1" id="roomList"></ul>
+        <div class="mt-3">
+          <button type="button" class="btn btn-primary w-100" id="exportPlan">Export plan for Blender</button>
+          <p class="small text-muted mt-2 mb-0">
+            Exports to <code>.json</code> with every wall and room per level. Import it via Blender: <code>blender --python scripts/generate_floorplan.py -- --plan &lt;file&gt; --obj-out assets/home.obj</code>.
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -61,8 +101,10 @@
     const canvas = document.getElementById("builderCanvas");
     const ctx = canvas.getContext("2d");
     const gridSize = 30;
-    const walls = [];
-    const rooms = [];
+    const storageKey = "altinet-floorplan";
+    const defaultUnitScale = 0.5; // metres per grid unit
+    let levels = [];
+    let activeLevelId = null;
     let isDrawing = false;
     let startPoint = null;
     let previewPoint = null;
@@ -72,6 +114,13 @@
     const roomList = document.getElementById("roomList");
     const clearButton = document.getElementById("clearCanvas");
     const undoButton = document.getElementById("undoLast");
+    const levelTabs = document.getElementById("levelTabs");
+    const levelNameInput = document.getElementById("levelName");
+    const addLevelButton = document.getElementById("addLevel");
+    const duplicateLevelButton = document.getElementById("duplicateLevel");
+    const deleteLevelButton = document.getElementById("deleteLevel");
+    const exportPlanButton = document.getElementById("exportPlan");
+    const activeLevelBadge = document.getElementById("activeLevelLabel");
 
     function setActiveTool(tool) {
       activeTool = tool;
@@ -87,6 +136,95 @@
     toolButtons.forEach((button) => {
       button.addEventListener("click", () => setActiveTool(button.dataset.tool));
     });
+
+    function uuid() {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      return `lvl-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    }
+
+    function createLevel(name) {
+      return {
+        id: uuid(),
+        name,
+        walls: [],
+        rooms: [],
+      };
+    }
+
+    function loadState() {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (!stored) {
+          const initialLevel = createLevel("Level 1");
+          levels = [initialLevel];
+          activeLevelId = initialLevel.id;
+          return;
+        }
+        const parsed = JSON.parse(stored);
+        if (!Array.isArray(parsed.levels) || parsed.levels.length === 0) {
+          throw new Error("Invalid stored plan");
+        }
+        levels = parsed.levels.map((level, index) => ({
+          id: level.id || uuid(),
+          name: level.name || `Level ${index + 1}`,
+          walls: Array.isArray(level.walls) ? level.walls : [],
+          rooms: Array.isArray(level.rooms) ? level.rooms : [],
+        }));
+        const storedActive = levels.find((level) => level.id === parsed.activeLevelId);
+        activeLevelId = storedActive ? storedActive.id : levels[0].id;
+      } catch (error) {
+        console.warn("Could not load saved plan, resetting", error);
+        const reset = createLevel("Level 1");
+        levels = [reset];
+        activeLevelId = reset.id;
+        localStorage.removeItem(storageKey);
+      }
+    }
+
+    function persistState() {
+      const payload = {
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        activeLevelId,
+        levels,
+      };
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+
+    function getActiveLevel() {
+      return levels.find((level) => level.id === activeLevelId) || null;
+    }
+
+    function setActiveLevel(levelId) {
+      const level = levels.find((item) => item.id === levelId);
+      if (!level) {
+        return;
+      }
+      activeLevelId = levelId;
+      levelNameInput.value = level.name;
+      activeLevelBadge.textContent = level.name;
+      updateLevelTabs();
+      updateRoomList();
+      render();
+      persistState();
+    }
+
+    function updateLevelTabs() {
+      levelTabs.innerHTML = "";
+      levels.forEach((level) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `btn btn-sm ${
+          level.id === activeLevelId ? "btn-primary" : "btn-outline-light"
+        }`;
+        button.textContent = level.name;
+        button.addEventListener("click", () => setActiveLevel(level.id));
+        levelTabs.appendChild(button);
+      });
+      deleteLevelButton.disabled = levels.length <= 1;
+    }
 
     function snapToGrid(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
@@ -122,7 +260,12 @@
 
     function renderRooms() {
       ctx.save();
-      rooms.forEach((room) => {
+      const level = getActiveLevel();
+      if (!level) {
+        ctx.restore();
+        return;
+      }
+      level.rooms.forEach((room) => {
         ctx.fillStyle = "rgba(13, 110, 253, 0.15)";
         ctx.strokeStyle = "rgba(13, 110, 253, 0.6)";
         ctx.lineWidth = 2;
@@ -142,7 +285,12 @@
       ctx.strokeStyle = "#343a40";
       ctx.lineWidth = 4;
       ctx.lineCap = "round";
-      walls.forEach((wall) => {
+      const level = getActiveLevel();
+      if (!level) {
+        ctx.restore();
+        return;
+      }
+      level.walls.forEach((wall) => {
         ctx.beginPath();
         ctx.moveTo(wall.start.x, wall.start.y);
         ctx.lineTo(wall.end.x, wall.end.y);
@@ -190,15 +338,16 @@
 
     function updateRoomList() {
       roomList.innerHTML = "";
-      if (rooms.length === 0) {
+      const level = getActiveLevel();
+      if (!level || level.rooms.length === 0) {
         const empty = document.createElement("li");
         empty.className = "list-group-item text-muted";
-        empty.textContent = "Draw a room to see it listed here.";
+        empty.textContent = "Draw a room on the active level to see it listed here.";
         roomList.appendChild(empty);
         return;
       }
 
-      rooms.forEach((room, index) => {
+      level.rooms.forEach((room, index) => {
         const li = document.createElement("li");
         li.className = "list-group-item d-flex justify-content-between align-items-center";
         const widthUnits = Math.round((room.width / gridSize) * 100) / 100;
@@ -229,25 +378,35 @@
       if (!startPoint || (startPoint.x === endPoint.x && startPoint.y === endPoint.y)) {
         return;
       }
-      walls.push({ start: { ...startPoint }, end: { ...endPoint } });
+      const level = getActiveLevel();
+      if (!level) {
+        return;
+      }
+      level.walls.push({ start: { ...startPoint }, end: { ...endPoint } });
+      persistState();
     }
 
     function createRoom(endPoint) {
       if (!startPoint || startPoint.x === endPoint.x || startPoint.y === endPoint.y) {
         return;
       }
+      const level = getActiveLevel();
+      if (!level) {
+        return;
+      }
       const x = Math.min(startPoint.x, endPoint.x);
       const y = Math.min(startPoint.y, endPoint.y);
       const width = Math.abs(endPoint.x - startPoint.x);
       const height = Math.abs(endPoint.y - startPoint.y);
-      const defaultName = `Room ${rooms.length + 1}`;
+      const defaultName = `Room ${level.rooms.length + 1}`;
       const enteredName = window.prompt("Name this room", defaultName);
       if (enteredName === null) {
         return;
       }
       const name = enteredName.trim() || defaultName;
-      rooms.push({ name, x, y, width, height });
+      level.rooms.push({ name, x, y, width, height });
       updateRoomList();
+      persistState();
     }
 
     function handlePointerUp(event) {
@@ -295,31 +454,130 @@
     canvas.addEventListener("touchcancel", handlePointerLeave);
 
     clearButton.addEventListener("click", () => {
-      walls.length = 0;
-      rooms.length = 0;
+      const level = getActiveLevel();
+      if (!level) {
+        return;
+      }
+      level.walls.length = 0;
+      level.rooms.length = 0;
       updateRoomList();
       render();
+      persistState();
     });
 
     undoButton.addEventListener("click", () => {
-      if (activeTool === "wall" && walls.length) {
-        walls.pop();
-      } else if (activeTool === "room" && rooms.length) {
-        rooms.pop();
+      const level = getActiveLevel();
+      if (!level) {
+        return;
+      }
+      if (activeTool === "wall" && level.walls.length) {
+        level.walls.pop();
+      } else if (activeTool === "room" && level.rooms.length) {
+        level.rooms.pop();
         updateRoomList();
-      } else if (walls.length) {
-        walls.pop();
-      } else if (rooms.length) {
-        rooms.pop();
+      } else if (level.walls.length) {
+        level.walls.pop();
+      } else if (level.rooms.length) {
+        level.rooms.pop();
         updateRoomList();
       }
       render();
+      persistState();
     });
 
     window.addEventListener("resize", render);
 
+    loadState();
+    updateLevelTabs();
+    setActiveLevel(activeLevelId);
     updateRoomList();
     render();
+
+    levelNameInput.addEventListener("input", (event) => {
+      const level = getActiveLevel();
+      if (!level) {
+        return;
+      }
+      const value = event.target.value.trim() || "Unnamed level";
+      level.name = value;
+      activeLevelBadge.textContent = value;
+      updateLevelTabs();
+      persistState();
+    });
+
+    addLevelButton.addEventListener("click", () => {
+      const newLevelIndex = levels.length + 1;
+      const level = createLevel(`Level ${newLevelIndex}`);
+      levels.push(level);
+      persistState();
+      updateLevelTabs();
+      setActiveLevel(level.id);
+    });
+
+    duplicateLevelButton.addEventListener("click", () => {
+      const active = getActiveLevel();
+      if (!active) {
+        return;
+      }
+      const clone = {
+        id: uuid(),
+        name: `${active.name} copy`,
+        walls: active.walls.map((wall) => ({
+          start: { ...wall.start },
+          end: { ...wall.end },
+        })),
+        rooms: active.rooms.map((room) => ({ ...room })),
+      };
+      levels.push(clone);
+      persistState();
+      updateLevelTabs();
+      setActiveLevel(clone.id);
+    });
+
+    deleteLevelButton.addEventListener("click", () => {
+      if (levels.length <= 1) {
+        return;
+      }
+      const confirmation = window.confirm(
+        "Delete the current level? This cannot be undone and removes its rooms and walls.",
+      );
+      if (!confirmation) {
+        return;
+      }
+      levels = levels.filter((level) => level.id !== activeLevelId);
+      activeLevelId = levels[0].id;
+      persistState();
+      updateLevelTabs();
+      setActiveLevel(activeLevelId);
+    });
+
+    exportPlanButton.addEventListener("click", () => {
+      const exportData = {
+        schema: "altinet-floorplan",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        gridSize,
+        unitScale: defaultUnitScale,
+        levels: levels.map((level, index) => ({
+          index,
+          id: level.id,
+          name: level.name,
+          walls: level.walls,
+          rooms: level.rooms,
+        })),
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `altinet-floorplan-${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
   })();
 </script>
 {% endblock %}

@@ -231,6 +231,11 @@ function buildMeshGroup(groups, materials) {
     mesh.name = name;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+
+    if (name.toLowerCase().includes('wall')) {
+      mesh.rotation.x = -Math.PI / 2;
+    }
+
     root.add(mesh);
   }
 

@@ -1,0 +1,20 @@
+#home-viewer {
+  min-height: 60vh;
+  background: linear-gradient(180deg, #f8f9fb 0%, #e9eef5 100%);
+}
+
+#home-viewer canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.viewer-shell {
+  border-style: solid;
+}
+
+.viewer-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+}

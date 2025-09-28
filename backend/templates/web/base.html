@@ -40,9 +40,15 @@
               </a>
             </li>
           </ul>
-          <div class="d-flex align-items-center">
+          <div class="d-flex align-items-center gap-2">
             {% if user.is_authenticated %}
-            <span class="navbar-text me-3">{{ user.get_username }}</span>
+            <a
+              class="btn btn-outline-light {% if request.resolver_match.url_name == 'builder' %}active{% endif %}"
+              href="{% url 'web:builder' %}"
+            >
+              Builder
+            </a>
+            <span class="navbar-text">{{ user.get_username }}</span>
             <a class="btn btn-outline-light" href="{% url 'logout' %}">Sign out</a>
             {% endif %}
           </div>

@@ -86,8 +86,52 @@ Django backend for dashboards and historical analysis.
 6. Run the offline demo (requires a recorded video):
 
    ```bash
-   python scripts/run_demo.py path/to/video.mp4 --room living_room
+ python scripts/run_demo.py path/to/video.mp4 --room living_room
+  ```
+
+## Query the built-in LLM assistant
+
+Altinet exposes a lightweight `/api/llm/` namespace in Django that wraps the
+offline LLaMA model configured through environment variables. To enable the
+assistant locally:
+
+1. Point the backend at your `llama.cpp` compatible weights and optional
+   generation settings before starting Django:
+
+   ```bash
+   export ALTINET_LLAMA_MODEL_PATH=/absolute/path/to/ggml-model.bin
+   export ALTINET_LLAMA_CONTEXT=2048            # optional
+   export ALTINET_LLAMA_MAX_TOKENS=256          # optional
+   export ALTINET_LLAMA_TEMPERATURE=0.7         # optional
    ```
+
+2. Verify the model loads correctly by calling the health probe:
+
+   ```bash
+   curl http://127.0.0.1:8000/api/llm/health/
+   ```
+
+3. Send prompts with your preferred HTTP client. The service accepts JSON with
+   a `prompt` field plus optional `max_tokens` and `temperature` overrides:
+
+   ```bash
+   curl -X POST http://127.0.0.1:8000/api/llm/prompt/ \
+     -H 'Content-Type: application/json' \
+     -d '{
+           "prompt": "Summarise the latest living_room activity feed",
+           "max_tokens": 128,
+           "temperature": 0.6
+         }'
+   ```
+
+   Successful requests return a JSON document similar to
+
+   ```json
+   {"response": "The living room has been idle for 5 minutes."}
+   ```
+
+   The home dashboard ships with a basic form that posts to the same endpoint
+   (`/` → *Assistant* card) so operators can experiment without leaving the UI.
 
 ### Builder → Blender → Dashboard workflow
 

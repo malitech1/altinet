@@ -41,47 +41,31 @@
             </noscript>
           </div>
         </div>
-        <div class="col-12 col-lg-4 col-xl-3 text-lg-start text-center">
-          <h1 class="display-5 fw-semibold mb-3">Welcome home</h1>
-          <p class="text-muted mb-4">
-            Explore a 3D overview of your connected home, exported directly
-            from the latest Blender build of your floorplan. Rotate, zoom and
-            pan to review every room and device placement.
-          </p>
-          <div class="d-grid d-sm-flex gap-2 justify-content-center justify-content-lg-start">
-            <a class="btn btn-primary btn-lg" href="{% url 'admin:index' %}">Open admin</a>
-            <a class="btn btn-outline-secondary btn-lg" href="{% url 'web:builder' %}">Edit floorplan</a>
+        <div class="col-12 col-lg-4 col-xl-3">
+          <div class="snapshot-panel bg-light border border-2 border-secondary-subtle rounded-4 p-4 h-100">
+            <div class="d-flex flex-column gap-3 h-100">
+              <div class="d-flex flex-column gap-1">
+                <h2 class="h4 fw-semibold mb-0">Live home snapshot</h2>
+                <p class="text-muted small mb-0">Stay on top of sensor readings and conditions.</p>
+              </div>
+              <div class="text-muted small d-flex align-items-center gap-2">
+                <span class="status-indicator bg-success-subtle border border-success-subtle"></span>
+                <span>Updated {{ environment_snapshot.local_time|date:"g:i A" }} local</span>
+              </div>
+              <div class="d-grid gap-3" data-role="metrics">
+                {% for metric in dashboard_metrics %}
+                <div class="metric-card border border-2 border-secondary-subtle rounded-4 p-3">
+                  <p class="text-uppercase text-muted small fw-semibold mb-2">{{ metric.label }}</p>
+                  <p class="fs-3 fw-semibold mb-1">{{ metric.value }}</p>
+                  <p class="text-muted small mb-0">{{ metric.detail }}</p>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
-<div class="row justify-content-center">
-  <div class="col-12 col-xl-10">
-    <section class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-4 p-md-5">
-      <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
-        <div>
-          <h2 class="h4 fw-semibold mb-2">Live home snapshot</h2>
-          <p class="text-muted mb-0">Stay on top of the latest sensor readings and conditions.</p>
-        </div>
-        <div class="text-muted small d-flex align-items-center gap-2">
-          <span class="status-indicator bg-success-subtle border border-success-subtle"></span>
-          <span>Updated {{ environment_snapshot.local_time|date:"g:i A" }} local</span>
-        </div>
-      </div>
-      <div class="row g-3 g-md-4">
-        {% for metric in dashboard_metrics %}
-        <div class="col-12 col-sm-6 col-lg-4 col-xxl-3">
-          <div class="metric-card h-100 border border-2 border-secondary-subtle rounded-4 p-3 p-xl-4">
-            <p class="text-uppercase text-muted small fw-semibold mb-2">{{ metric.label }}</p>
-            <p class="display-6 fs-2 fw-semibold mb-1">{{ metric.value }}</p>
-            <p class="text-muted small mb-0">{{ metric.detail }}</p>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </section>
   </div>
 </div>
 <div class="row justify-content-center mt-4">

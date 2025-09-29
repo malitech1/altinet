@@ -86,8 +86,84 @@ Django backend for dashboards and historical analysis.
 6. Run the offline demo (requires a recorded video):
 
    ```bash
-   python scripts/run_demo.py path/to/video.mp4 --room living_room
+ python scripts/run_demo.py path/to/video.mp4 --room living_room
+  ```
+
+## Query the built-in LLM assistant
+
+Altinet exposes a lightweight `/api/llm/` namespace in Django that wraps the
+offline LLaMA model configured through environment variables. To enable the
+assistant locally:
+
+1. Point the backend at your `llama.cpp` compatible weights and optional
+   generation settings before starting Django:
+
+   ```bash
+   export ALTINET_LLAMA_MODEL_PATH=/absolute/path/to/ggml-model.bin
+   export ALTINET_LLAMA_CONTEXT=2048            # optional
+   export ALTINET_LLAMA_MAX_TOKENS=256          # optional
+   export ALTINET_LLAMA_TEMPERATURE=0.7         # optional
    ```
+
+2. Verify the model loads correctly by calling the health probe:
+
+   ```bash
+   curl http://127.0.0.1:8000/api/llm/health/
+   ```
+
+3. Send prompts with your preferred HTTP client. The service accepts JSON with
+   a `prompt` field plus optional `max_tokens` and `temperature` overrides:
+
+   ```bash
+   curl -X POST http://127.0.0.1:8000/api/llm/prompt/ \
+     -H 'Content-Type: application/json' \
+     -d '{
+           "prompt": "Summarise the latest living_room activity feed",
+           "max_tokens": 128,
+           "temperature": 0.6
+         }'
+   ```
+
+   Successful requests return a JSON document similar to
+
+   ```json
+   {"response": "The living room has been idle for 5 minutes."}
+   ```
+
+   The home dashboard ships with a basic form that posts to the same endpoint
+   (`/` → *Assistant* card) so operators can experiment without leaving the UI.
+
+### Query the assistant from ROS 2
+
+The ROS 2 workspace also exposes the assistant through a synchronous service so
+nodes can obtain completions without touching HTTP clients directly. After
+building and sourcing `ros2_ws`, launch the bridge that proxies calls to the
+Django backend:
+
+```bash
+ros2 run altinet llm_service_node \
+  --ros-args \
+  -p api_base:=http://127.0.0.1:8000/api/llm \
+  -p default_max_tokens:=256 \
+  -p default_temperature:=0.7
+```
+
+Once the node is running you should see `/altinet/llm/prompt` listed under
+`ros2 service list`. Invoke it from any terminal to fetch a response:
+
+```bash
+ros2 service call /altinet/llm/prompt altinet_interfaces/srv/PromptLLM "{
+  prompt: 'Summarise the latest living_room activity feed',
+  max_tokens: 128,
+  temperature: 0.6
+}"
+```
+
+The service returns the generated `response` text together with bookkeeping
+fields (`model`, `prompt_tokens`, `completion_tokens`). Leave `max_tokens` or
+`temperature` unset to fall back to the defaults configured on the node. When
+invoking the service from your own node import the generated interface and call
+it through a `Client<PromptLLM>` just like any other ROS 2 service.
 
 ### Builder → Blender → Dashboard workflow
 

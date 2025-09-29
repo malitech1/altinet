@@ -40,6 +40,16 @@
                 Home
               </a>
             </li>
+            {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a
+                class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}"
+                href="{% url 'web:settings' %}"
+              >
+                Settings
+              </a>
+            </li>
+            {% endif %}
           </ul>
           <div class="d-flex align-items-center gap-2">
             {% if user.is_authenticated %}
@@ -58,6 +68,15 @@
     </nav>
 
     <main class="container my-5">
+      {% if messages %}
+      <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }}" role="alert">
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
       {% block content %}{% endblock %}
     </main>
 

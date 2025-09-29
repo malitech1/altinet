@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from django.db import models
+from django.db import connection, models
+from django.db.utils import OperationalError, ProgrammingError
 
 
 class SystemSettings(models.Model):
@@ -33,5 +34,23 @@ class SystemSettings(models.Model):
 
     @classmethod
     def load(cls) -> "SystemSettings":
+        """Return the singleton settings instance if the table exists.
+
+        The settings page is visited very early during new installations.
+        When the initial migrations haven't been applied yet the backing
+        database table is missing which used to raise an OperationalError and
+        crash the whole view.  Instead of propagating the error we return an
+        unsaved instance populated with model defaults so the UI can render
+        and guide the operator through the remainder of the setup process.
+        """
+
+        try:
+            table_names = connection.introspection.table_names()
+        except (OperationalError, ProgrammingError):
+            return cls()
+
+        if cls._meta.db_table not in table_names:
+            return cls()
+
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj

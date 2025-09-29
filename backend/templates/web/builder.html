@@ -4,7 +4,85 @@
 
 {% block content %}
 <div class="row g-4">
-  <div class="col-12 col-lg-8">
+  <div class="col-12 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-dark text-white">Toolkit</div>
+      <div class="card-body">
+        <p class="text-muted small mb-4">
+          Configure the baseline measurements used when walls, doors and windows are exported from the builder.
+        </p>
+        <div class="mb-3">
+          <label for="wallHeightInput" class="form-label small text-uppercase fw-semibold text-secondary">
+            Wall height (mm)
+          </label>
+          <input
+            type="number"
+            class="form-control form-control-sm"
+            id="wallHeightInput"
+            min="1500"
+            max="4500"
+            step="10"
+          />
+        </div>
+        <div class="mb-3">
+          <label for="wallThicknessInput" class="form-label small text-uppercase fw-semibold text-secondary">
+            Wall thickness (mm)
+          </label>
+          <input
+            type="number"
+            class="form-control form-control-sm"
+            id="wallThicknessInput"
+            min="50"
+            max="400"
+            step="5"
+          />
+        </div>
+        <div class="mb-3">
+          <label for="internalDoorWidthInput" class="form-label small text-uppercase fw-semibold text-secondary">
+            Internal door width (mm)
+          </label>
+          <input
+            type="number"
+            class="form-control form-control-sm"
+            id="internalDoorWidthInput"
+            min="500"
+            max="1200"
+            step="5"
+          />
+        </div>
+        <div class="mb-3">
+          <label for="externalDoorWidthInput" class="form-label small text-uppercase fw-semibold text-secondary">
+            External door width (mm)
+          </label>
+          <input
+            type="number"
+            class="form-control form-control-sm"
+            id="externalDoorWidthInput"
+            min="600"
+            max="1600"
+            step="5"
+          />
+        </div>
+        <div class="mb-3">
+          <label for="windowSillHeightInput" class="form-label small text-uppercase fw-semibold text-secondary">
+            Window sill height (mm)
+          </label>
+          <input
+            type="number"
+            class="form-control form-control-sm"
+            id="windowSillHeightInput"
+            min="300"
+            max="1500"
+            step="10"
+          />
+        </div>
+        <p class="small text-muted mb-0">
+          Values are saved with your plan and synchronised to the backend alongside geometry updates.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-6">
     <div class="card shadow-sm h-100">
       <div class="card-header bg-dark text-white d-flex flex-column flex-xl-row gap-3 align-items-start align-items-xl-center justify-content-between">
         <div>
@@ -33,6 +111,9 @@
               Room tool
             </button>
           </div>
+          <p class="small text-muted mb-0 flex-grow-1 order-3 order-md-2">
+            Room tool: click to add vertices, then click the first point or double-click to close the shape.
+          </p>
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-secondary" id="undoLast">
               Undo last
@@ -133,12 +214,12 @@
       </div>
     </div>
   </div>
-  <div class="col-12 col-lg-4">
+  <div class="col-12 col-xl-3">
     <div class="card shadow-sm h-100">
       <div class="card-header bg-dark text-white">Rooms</div>
       <div class="card-body d-flex flex-column">
         <p class="text-muted small">
-          Rooms you define are listed here with their grid dimensions. Use this as a quick reference while sketching your layout.
+          Rooms you define are listed here with their area and grid dimensions. Use this as a quick reference while sketching your layout.
         </p>
         <ul class="list-group flex-grow-1" id="roomList"></ul>
         <div class="mt-3">
@@ -161,8 +242,17 @@
     const defaultUnitScale = 0.5; // metres per grid unit
     const mmPerGridUnit = defaultUnitScale * 1000;
     const mmPerPixel = mmPerGridUnit / gridSize;
+    const metersPerPixel = mmPerPixel / 1000;
     const syncEndpoint = "/api/floorplans/render/";
     const syncDelayMs = 1500;
+    const defaultSettings = {
+      wallHeightMm: 2400,
+      wallThicknessMm: 140,
+      internalDoorWidthMm: 762,
+      externalDoorWidthMm: 910,
+      windowSillHeightMm: 900,
+    };
+    const roomClosureThreshold = gridSize / 2;
     let lastUpdatedAt = null;
     let syncTimeoutId = null;
     let queuedPayload = null;
@@ -173,10 +263,13 @@
     let activeLevelId = null;
     let needsInitialPersist = false;
     let isDrawing = false;
+    let drawingMode = null;
     let startPoint = null;
     let previewPoint = null;
     let activeTool = "wall";
     let selectedWallIndex = null;
+    let roomDraftPoints = [];
+    let builderSettings = { ...defaultSettings };
 
     const canvasContainer = document.getElementById("builderCanvasContainer");
     const wallEditor = document.getElementById("wallEditor");
@@ -195,6 +288,13 @@
     const deleteLevelButton = document.getElementById("deleteLevel");
     const exportPlanButton = document.getElementById("exportPlan");
     const activeLevelBadge = document.getElementById("activeLevelLabel");
+    const settingsInputs = {
+      wallHeightMm: document.getElementById("wallHeightInput"),
+      wallThicknessMm: document.getElementById("wallThicknessInput"),
+      internalDoorWidthMm: document.getElementById("internalDoorWidthInput"),
+      externalDoorWidthMm: document.getElementById("externalDoorWidthInput"),
+      windowSillHeightMm: document.getElementById("windowSillHeightInput"),
+    };
 
     function getCsrfToken() {
       const name = "csrftoken=";
@@ -206,6 +306,151 @@
         }
       }
       return "";
+    }
+
+    function normaliseSettings(rawSettings) {
+      const result = { ...defaultSettings };
+      if (rawSettings && typeof rawSettings === "object") {
+        Object.entries(rawSettings).forEach(([key, value]) => {
+          if (!(key in result)) {
+            return;
+          }
+          const numericValue = Number(value);
+          if (Number.isFinite(numericValue)) {
+            result[key] = numericValue;
+          }
+        });
+      }
+      return result;
+    }
+
+    function applySettingsToInputs() {
+      Object.entries(settingsInputs).forEach(([key, input]) => {
+        if (!input) {
+          return;
+        }
+        const value = builderSettings[key];
+        if (typeof value === "number" && !Number.isNaN(value)) {
+          input.value = value;
+        } else {
+          input.value = "";
+        }
+      });
+    }
+
+    function updateSetting(key, value) {
+      if (!(key in builderSettings) || !Number.isFinite(value) || value <= 0) {
+        return;
+      }
+      builderSettings = { ...builderSettings, [key]: value };
+      persistState();
+    }
+
+    function clonePoint(point) {
+      if (!point || typeof point.x !== "number" || typeof point.y !== "number") {
+        return null;
+      }
+      return { x: point.x, y: point.y };
+    }
+
+    function arePointsEqual(a, b) {
+      if (!a || !b) {
+        return false;
+      }
+      return Math.abs(a.x - b.x) < 0.001 && Math.abs(a.y - b.y) < 0.001;
+    }
+
+    function distanceBetweenPoints(a, b) {
+      if (!a || !b) {
+        return Number.POSITIVE_INFINITY;
+      }
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function calculatePolygonArea(points) {
+      if (!Array.isArray(points) || points.length < 3) {
+        return 0;
+      }
+      let sum = 0;
+      for (let i = 0; i < points.length; i += 1) {
+        const current = points[i];
+        const next = points[(i + 1) % points.length];
+        sum += current.x * next.y - next.x * current.y;
+      }
+      return Math.abs(sum) / 2;
+    }
+
+    function computePolygonBounds(points) {
+      if (!Array.isArray(points) || points.length === 0) {
+        return { x: 0, y: 0, width: 0, height: 0 };
+      }
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      points.forEach((point) => {
+        minX = Math.min(minX, point.x);
+        minY = Math.min(minY, point.y);
+        maxX = Math.max(maxX, point.x);
+        maxY = Math.max(maxY, point.y);
+      });
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    }
+
+    function getPolygonCentroid(points) {
+      if (!Array.isArray(points) || points.length === 0) {
+        return { x: 0, y: 0 };
+      }
+      let areaTerm = 0;
+      let centroidX = 0;
+      let centroidY = 0;
+      for (let i = 0; i < points.length; i += 1) {
+        const current = points[i];
+        const next = points[(i + 1) % points.length];
+        const cross = current.x * next.y - next.x * current.y;
+        areaTerm += cross;
+        centroidX += (current.x + next.x) * cross;
+        centroidY += (current.y + next.y) * cross;
+      }
+      const area = areaTerm / 2;
+      if (Math.abs(area) < 1e-5) {
+        return { x: points[0].x, y: points[0].y };
+      }
+      const factor = 1 / (6 * area);
+      return { x: centroidX * factor, y: centroidY * factor };
+    }
+
+    function getRoomPolygon(room) {
+      if (!room) {
+        return [];
+      }
+      if (Array.isArray(room.points) && room.points.length >= 3) {
+        return room.points.map((point) => clonePoint(point)).filter(Boolean);
+      }
+      if (
+        typeof room.x === "number" &&
+        typeof room.y === "number" &&
+        typeof room.width === "number" &&
+        typeof room.height === "number"
+      ) {
+        return [
+          { x: room.x, y: room.y },
+          { x: room.x + room.width, y: room.y },
+          { x: room.x + room.width, y: room.y + room.height },
+          { x: room.x, y: room.y + room.height },
+        ];
+      }
+      return [];
+    }
+
+    function resetRoomDraft() {
+      roomDraftPoints = [];
+      previewPoint = null;
+      startPoint = null;
+      if (drawingMode === "room") {
+        isDrawing = false;
+        drawingMode = null;
+      }
     }
 
     function buildPlanPayload({ timestamp = null, includeExportMetadata = false } = {}) {
@@ -220,9 +465,33 @@
           index,
           id: level.id,
           name: level.name,
-          walls: level.walls,
-          rooms: level.rooms,
+          walls: level.walls
+            .map((wall) => {
+              if (!wall) {
+                return null;
+              }
+              const start = clonePoint(wall.start);
+              const end = clonePoint(wall.end);
+              if (!start || !end) {
+                return null;
+              }
+              return { start, end };
+            })
+            .filter(Boolean),
+          rooms: level.rooms.map((room) => {
+            const polygon = getRoomPolygon(room);
+            const points = polygon.length >= 3 ? polygon : undefined;
+            return {
+              name: room.name,
+              points,
+              x: typeof room.x === "number" ? room.x : undefined,
+              y: typeof room.y === "number" ? room.y : undefined,
+              width: typeof room.width === "number" ? room.width : undefined,
+              height: typeof room.height === "number" ? room.height : undefined,
+            };
+          }),
         })),
+        settings: { ...builderSettings },
       };
       if (includeExportMetadata) {
         payload.exportedAt = new Date().toISOString();
@@ -304,12 +573,35 @@
       });
       if (tool !== "wall") {
         clearSelectedWall();
+        if (drawingMode === "wall") {
+          isDrawing = false;
+          drawingMode = null;
+          startPoint = null;
+          previewPoint = null;
+        }
+      }
+      if (tool !== "room") {
+        resetRoomDraft();
       }
       render();
     }
 
     toolButtons.forEach((button) => {
       button.addEventListener("click", () => setActiveTool(button.dataset.tool));
+    });
+
+    Object.entries(settingsInputs).forEach(([key, input]) => {
+      if (!input) {
+        return;
+      }
+      input.addEventListener("change", (event) => {
+        const value = Number(event.target.value);
+        if (Number.isFinite(value)) {
+          updateSetting(key, value);
+        } else {
+          applySettingsToInputs();
+        }
+      });
     });
 
     function uuid() {
@@ -336,6 +628,8 @@
           levels = [initialLevel];
           activeLevelId = initialLevel.id;
           lastUpdatedAt = new Date().toISOString();
+          builderSettings = { ...defaultSettings };
+          applySettingsToInputs();
           needsInitialPersist = true;
           return;
         }
@@ -343,17 +637,69 @@
         if (!Array.isArray(parsed.levels) || parsed.levels.length === 0) {
           throw new Error("Invalid stored plan");
         }
-        levels = parsed.levels.map((level, index) => ({
-          id: level.id || uuid(),
-          name: level.name || `Level ${index + 1}`,
-          walls: Array.isArray(level.walls) ? level.walls : [],
-          rooms: Array.isArray(level.rooms) ? level.rooms : [],
-        }));
+        builderSettings = normaliseSettings(parsed.settings);
+        levels = parsed.levels.map((level, index) => {
+          const walls = Array.isArray(level.walls)
+            ? level.walls
+                .map((wall) => {
+                  if (!wall) {
+                    return null;
+                  }
+                  const start = clonePoint(wall.start);
+                  const end = clonePoint(wall.end);
+                  if (!start || !end) {
+                    return null;
+                  }
+                  return { start, end };
+                })
+                .filter(Boolean)
+            : [];
+          const rooms = Array.isArray(level.rooms)
+            ? level.rooms.map((room, roomIndex) => {
+                const polygon =
+                  Array.isArray(room.points) && room.points.length >= 3
+                    ? room.points.map((point) => clonePoint(point)).filter(Boolean)
+                    : undefined;
+                const bounds = polygon ? computePolygonBounds(polygon) : null;
+                const width =
+                  typeof room.width === "number"
+                    ? room.width
+                    : bounds
+                    ? bounds.width
+                    : 0;
+                const height =
+                  typeof room.height === "number"
+                    ? room.height
+                    : bounds
+                    ? bounds.height
+                    : 0;
+                const x =
+                  typeof room.x === "number" ? room.x : bounds ? bounds.x : 0;
+                const y =
+                  typeof room.y === "number" ? room.y : bounds ? bounds.y : 0;
+                return {
+                  name: (room.name || `Room ${roomIndex + 1}`).trim(),
+                  points: polygon,
+                  x,
+                  y,
+                  width,
+                  height,
+                };
+              })
+            : [];
+          return {
+            id: level.id || uuid(),
+            name: level.name || `Level ${index + 1}`,
+            walls,
+            rooms,
+          };
+        });
         const storedActive = levels.find((level) => level.id === parsed.activeLevelId);
         activeLevelId = storedActive ? storedActive.id : levels[0].id;
         lastUpdatedAt =
           typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString();
         needsInitialPersist = false;
+        applySettingsToInputs();
       } catch (error) {
         console.warn("Could not load saved plan, resetting", error);
         const reset = createLevel("Level 1");
@@ -362,6 +708,8 @@
         lastUpdatedAt = new Date().toISOString();
         needsInitialPersist = true;
         localStorage.removeItem(storageKey);
+        builderSettings = { ...defaultSettings };
+        applySettingsToInputs();
       }
     }
 
@@ -373,6 +721,7 @@
         updatedAt,
         activeLevelId,
         levels,
+        settings: builderSettings,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
       needsInitialPersist = false;
@@ -390,6 +739,13 @@
         return;
       }
       clearSelectedWall();
+      resetRoomDraft();
+      if (drawingMode === "wall") {
+        isDrawing = false;
+        drawingMode = null;
+        startPoint = null;
+        previewPoint = null;
+      }
       activeLevelId = levelId;
       levelNameInput.value = level.name;
       activeLevelBadge.textContent = level.name;
@@ -641,17 +997,28 @@
         ctx.restore();
         return;
       }
+      ctx.lineWidth = 2;
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
       level.rooms.forEach((room) => {
-        ctx.fillStyle = "rgba(13, 110, 253, 0.15)";
-        ctx.strokeStyle = "rgba(13, 110, 253, 0.6)";
-        ctx.lineWidth = 2;
+        const polygon = getRoomPolygon(room);
+        if (polygon.length < 3) {
+          return;
+        }
         ctx.beginPath();
-        ctx.rect(room.x, room.y, room.width, room.height);
+        ctx.moveTo(polygon[0].x, polygon[0].y);
+        for (let i = 1; i < polygon.length; i += 1) {
+          ctx.lineTo(polygon[i].x, polygon[i].y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "rgba(25, 135, 84, 0.15)";
+        ctx.strokeStyle = "rgba(25, 135, 84, 0.7)";
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = "#0d6efd";
-        ctx.font = "14px sans-serif";
-        ctx.fillText(room.name, room.x + 10, room.y + 20);
+        const centroid = getPolygonCentroid(polygon);
+        ctx.fillStyle = "#198754";
+        ctx.fillText(room.name, centroid.x, centroid.y);
       });
       ctx.restore();
     }
@@ -670,12 +1037,13 @@
           return;
         }
         ctx.beginPath();
-        ctx.strokeStyle = index === selectedWallIndex ? "#0d6efd" : "#343a40";
+        ctx.strokeStyle =
+          index === selectedWallIndex ? "rgba(13, 110, 253, 0.9)" : "rgba(52, 58, 64, 0.45)";
         ctx.moveTo(wall.start.x, wall.start.y);
         ctx.lineTo(wall.end.x, wall.end.y);
         ctx.stroke();
         if (index === selectedWallIndex) {
-          ctx.fillStyle = "#0d6efd";
+          ctx.fillStyle = "rgba(13, 110, 253, 0.9)";
           [wall.start, wall.end].forEach((point) => {
             ctx.beginPath();
             ctx.arc(point.x, point.y, 6, 0, Math.PI * 2);
@@ -687,11 +1055,11 @@
     }
 
     function renderPreview() {
-      if (!isDrawing || !startPoint || !previewPoint) {
+      if (!isDrawing) {
         return;
       }
       ctx.save();
-      if (activeTool === "wall") {
+      if (drawingMode === "wall" && startPoint && previewPoint) {
         ctx.strokeStyle = "rgba(13, 110, 253, 0.8)";
         ctx.lineWidth = 4;
         ctx.setLineDash([8, 6]);
@@ -699,19 +1067,33 @@
         ctx.moveTo(startPoint.x, startPoint.y);
         ctx.lineTo(previewPoint.x, previewPoint.y);
         ctx.stroke();
-      } else if (activeTool === "room") {
-        const width = previewPoint.x - startPoint.x;
-        const height = previewPoint.y - startPoint.y;
-        if (width !== 0 && height !== 0) {
-          ctx.fillStyle = "rgba(25, 135, 84, 0.2)";
-          ctx.strokeStyle = "rgba(25, 135, 84, 0.8)";
-          ctx.setLineDash([10, 8]);
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.rect(startPoint.x, startPoint.y, width, height);
-          ctx.fill();
-          ctx.stroke();
+      } else if (drawingMode === "room" && roomDraftPoints.length) {
+        const previewVertices = roomDraftPoints.map((point) => ({ x: point.x, y: point.y }));
+        if (previewPoint) {
+          previewVertices.push({ x: previewPoint.x, y: previewPoint.y });
         }
+        if (previewVertices.length >= 2) {
+          ctx.strokeStyle = "rgba(25, 135, 84, 0.85)";
+          ctx.fillStyle = "rgba(25, 135, 84, 0.18)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([10, 6]);
+          ctx.beginPath();
+          ctx.moveTo(previewVertices[0].x, previewVertices[0].y);
+          for (let i = 1; i < previewVertices.length; i += 1) {
+            ctx.lineTo(previewVertices[i].x, previewVertices[i].y);
+          }
+          if (previewVertices.length >= 3) {
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        const first = roomDraftPoints[0];
+        ctx.fillStyle = "rgba(25, 135, 84, 0.9)";
+        ctx.beginPath();
+        ctx.arc(first.x, first.y, 5, 0, Math.PI * 2);
+        ctx.fill();
       }
       ctx.restore();
     }
@@ -743,9 +1125,28 @@
       level.rooms.forEach((room, index) => {
         const li = document.createElement("li");
         li.className = "list-group-item d-flex justify-content-between align-items-center";
-        const widthUnits = Math.round((room.width / gridSize) * 100) / 100;
-        const heightUnits = Math.round((room.height / gridSize) * 100) / 100;
-        li.innerHTML = `<span><strong>${room.name}</strong></span><span class="text-muted">${widthUnits} × ${heightUnits} grid units</span>`;
+        const polygon = getRoomPolygon(room);
+        const bounds = polygon.length
+          ? computePolygonBounds(polygon)
+          : {
+              x: typeof room.x === "number" ? room.x : 0,
+              y: typeof room.y === "number" ? room.y : 0,
+              width: typeof room.width === "number" ? room.width : 0,
+              height: typeof room.height === "number" ? room.height : 0,
+            };
+        const widthUnits = Math.round((bounds.width / gridSize) * 100) / 100;
+        const heightUnits = Math.round((bounds.height / gridSize) * 100) / 100;
+        const details = [];
+        if (polygon.length >= 3) {
+          const areaPx = calculatePolygonArea(polygon);
+          const areaSqM = areaPx * metersPerPixel * metersPerPixel;
+          if (Number.isFinite(areaSqM) && areaSqM > 0) {
+            const roundedArea = Math.round(areaSqM * 100) / 100;
+            details.push(`${roundedArea.toFixed(2)} m²`);
+          }
+        }
+        details.push(`${widthUnits} × ${heightUnits} grid units`);
+        li.innerHTML = `<span><strong>${room.name}</strong></span><span class="text-muted">${details.join(" · ")}</span>`;
         li.dataset.index = index;
         roomList.appendChild(li);
       });
@@ -755,88 +1156,141 @@
       if (event.preventDefault) {
         event.preventDefault();
       }
+      const clientX = event.clientX;
+      const clientY = event.clientY;
+
       if (activeTool === "wall") {
-        const canvasPoint = getCanvasPoint(event.clientX, event.clientY);
+        const canvasPoint = getCanvasPoint(clientX, clientY);
         const hit = findWallNearPoint(canvasPoint);
         if (hit) {
           isDrawing = false;
+          drawingMode = null;
           startPoint = null;
           previewPoint = null;
           selectWall(hit.index);
           return;
         }
+        clearSelectedWall();
+        isDrawing = true;
+        drawingMode = "wall";
+        startPoint = snapToGrid(clientX, clientY);
+        previewPoint = { ...startPoint };
+        render();
+        return;
       }
-      clearSelectedWall();
-      isDrawing = true;
-      startPoint = snapToGrid(event.clientX, event.clientY);
-      previewPoint = { ...startPoint };
-      render();
+
+      if (activeTool === "room") {
+        clearSelectedWall();
+        const snapped = snapToGrid(clientX, clientY);
+        if (!isDrawing || drawingMode !== "room" || roomDraftPoints.length === 0) {
+          roomDraftPoints = [snapped];
+          isDrawing = true;
+          drawingMode = "room";
+          previewPoint = { ...snapped };
+          render();
+          return;
+        }
+
+        const firstPoint = roomDraftPoints[0];
+        if (
+          roomDraftPoints.length >= 3 &&
+          (arePointsEqual(snapped, firstPoint) || distanceBetweenPoints(snapped, firstPoint) <= roomClosureThreshold)
+        ) {
+          const finished = finalizeRoomDraft();
+          if (finished) {
+            resetRoomDraft();
+            render();
+          }
+          return;
+        }
+
+        const lastPoint = roomDraftPoints[roomDraftPoints.length - 1];
+        if (!arePointsEqual(lastPoint, snapped)) {
+          roomDraftPoints.push(snapped);
+        }
+        previewPoint = { ...snapped };
+        render();
+      }
     }
 
     function handlePointerMove(event) {
       if (!isDrawing) {
         return;
       }
-      previewPoint = snapToGrid(event.clientX, event.clientY);
-      render();
+      if (drawingMode === "wall" || drawingMode === "room") {
+        previewPoint = snapToGrid(event.clientX, event.clientY);
+        render();
+      }
     }
 
     function createWall(endPoint) {
-      if (!startPoint || (startPoint.x === endPoint.x && startPoint.y === endPoint.y)) {
+      const start = clonePoint(startPoint);
+      const end = clonePoint(endPoint);
+      if (!start || !end || (start.x === end.x && start.y === end.y)) {
         return;
       }
       const level = getActiveLevel();
       if (!level) {
         return;
       }
-      level.walls.push({ start: { ...startPoint }, end: { ...endPoint } });
+      level.walls.push({ start, end });
       persistState();
       selectWall(level.walls.length - 1, { focusLength: true });
     }
 
-    function createRoom(endPoint) {
-      if (!startPoint || startPoint.x === endPoint.x || startPoint.y === endPoint.y) {
-        return;
+    function finalizeRoomDraft() {
+      if (roomDraftPoints.length < 3) {
+        return false;
       }
       const level = getActiveLevel();
       if (!level) {
-        return;
+        return false;
       }
-      const x = Math.min(startPoint.x, endPoint.x);
-      const y = Math.min(startPoint.y, endPoint.y);
-      const width = Math.abs(endPoint.x - startPoint.x);
-      const height = Math.abs(endPoint.y - startPoint.y);
+      const polygon = roomDraftPoints.map((point) => ({ x: point.x, y: point.y }));
       const defaultName = `Room ${level.rooms.length + 1}`;
       const enteredName = window.prompt("Name this room", defaultName);
       if (enteredName === null) {
-        return;
+        return false;
       }
       const name = enteredName.trim() || defaultName;
-      level.rooms.push({ name, x, y, width, height });
+      const bounds = computePolygonBounds(polygon);
+      level.rooms.push({
+        name,
+        points: polygon,
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      });
       updateRoomList();
       persistState();
+      return true;
     }
 
     function handlePointerUp(event) {
-      if (!isDrawing) {
+      if (!isDrawing || drawingMode !== "wall") {
         return;
       }
       const endPoint = snapToGrid(event.clientX, event.clientY);
-      if (activeTool === "wall") {
-        createWall(endPoint);
-      } else {
-        createRoom(endPoint);
-      }
+      createWall(endPoint);
       isDrawing = false;
+      drawingMode = null;
       startPoint = null;
       previewPoint = null;
       render();
     }
 
     function handlePointerLeave() {
-      if (isDrawing) {
+      if (!isDrawing) {
+        return;
+      }
+      if (drawingMode === "wall") {
         isDrawing = false;
+        drawingMode = null;
         startPoint = null;
+        previewPoint = null;
+        render();
+      } else if (drawingMode === "room") {
         previewPoint = null;
         render();
       }
@@ -846,20 +1300,50 @@
     canvas.addEventListener("mousemove", handlePointerMove);
     canvas.addEventListener("mouseup", handlePointerUp);
     canvas.addEventListener("mouseleave", handlePointerLeave);
+    canvas.addEventListener("dblclick", (event) => {
+      if (event.preventDefault) {
+        event.preventDefault();
+      }
+      if (activeTool !== "room" || drawingMode !== "room") {
+        return;
+      }
+      if (roomDraftPoints.length < 3) {
+        return;
+      }
+      const finished = finalizeRoomDraft();
+      if (finished) {
+        resetRoomDraft();
+        render();
+      }
+    });
 
     canvas.addEventListener("touchstart", (event) => {
       const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+      event.preventDefault();
       handlePointerDown(touch);
     });
     canvas.addEventListener("touchmove", (event) => {
       const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
+      event.preventDefault();
       handlePointerMove(touch);
     });
     canvas.addEventListener("touchend", (event) => {
       const touch = event.changedTouches[0];
+      if (!touch) {
+        return;
+      }
+      event.preventDefault();
       handlePointerUp(touch);
     });
-    canvas.addEventListener("touchcancel", handlePointerLeave);
+    canvas.addEventListener("touchcancel", () => {
+      handlePointerLeave();
+    });
 
     if (wallLengthInput) {
       wallLengthInput.addEventListener("change", () => {
@@ -915,6 +1399,13 @@
         return;
       }
       clearSelectedWall();
+      resetRoomDraft();
+      if (drawingMode === "wall") {
+        isDrawing = false;
+        drawingMode = null;
+        startPoint = null;
+        previewPoint = null;
+      }
       level.walls.length = 0;
       level.rooms.length = 0;
       updateRoomList();
@@ -925,6 +1416,25 @@
     undoButton.addEventListener("click", () => {
       const level = getActiveLevel();
       if (!level) {
+        return;
+      }
+      if (drawingMode === "wall" && isDrawing) {
+        isDrawing = false;
+        drawingMode = null;
+        startPoint = null;
+        previewPoint = null;
+        render();
+        return;
+      }
+      if (activeTool === "room" && drawingMode === "room" && roomDraftPoints.length > 0) {
+        roomDraftPoints.pop();
+        if (roomDraftPoints.length === 0) {
+          resetRoomDraft();
+        } else {
+          const lastPoint = roomDraftPoints[roomDraftPoints.length - 1];
+          previewPoint = { ...lastPoint };
+        }
+        render();
         return;
       }
       let changed = false;
@@ -1007,11 +1517,30 @@
       const clone = {
         id: uuid(),
         name: `${active.name} copy`,
-        walls: active.walls.map((wall) => ({
-          start: { ...wall.start },
-          end: { ...wall.end },
-        })),
-        rooms: active.rooms.map((room) => ({ ...room })),
+        walls: active.walls
+          .map((wall) => {
+            const start = clonePoint(wall.start);
+            const end = clonePoint(wall.end);
+            if (!start || !end) {
+              return null;
+            }
+            return { start, end };
+          })
+          .filter(Boolean),
+        rooms: active.rooms.map((room) => {
+          const points =
+            Array.isArray(room.points) && room.points.length >= 3
+              ? room.points.map((point) => clonePoint(point)).filter(Boolean)
+              : undefined;
+          return {
+            name: room.name,
+            points,
+            x: room.x,
+            y: room.y,
+            width: room.width,
+            height: room.height,
+          };
+        }),
       };
       levels.push(clone);
       persistState();

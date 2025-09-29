@@ -2,6 +2,10 @@
 
 # Altinet
 
+<p align="center">
+  <img src="assets/branding/altinet-logo.png" alt="Altinet logo" width="200">
+</p>
+
 Altinet is a home perception stack that detects, tracks and contextualises
 people in real-time. The project couples a ROS 2 based pipeline with a
 Django backend for dashboards and historical analysis.

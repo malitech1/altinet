@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "channels",
+    "llm",
     "spaces",
     "web",
 ]
@@ -180,3 +181,18 @@ FERNET_DERIVED_KEY = derive_fernet_key(FERNET_SECRET)
 # ROS bridge endpoints
 ROS_BRIDGE_BASE_URL = os.environ.get("ROS_BRIDGE_URL", "http://localhost:8001")
 ROS_BRIDGE_WS_URL = os.environ.get("ROS_BRIDGE_WS_URL", "ws://localhost:8001")
+
+# Offline LLaMA configuration
+LLAMA_MODEL_PATH = os.environ.get("ALTINET_LLAMA_MODEL_PATH", "")
+LLAMA_CONTEXT_WINDOW = int(os.environ.get("ALTINET_LLAMA_CONTEXT", "2048"))
+LLAMA_MAX_TOKENS = int(os.environ.get("ALTINET_LLAMA_MAX_TOKENS", "256"))
+LLAMA_TEMPERATURE = float(os.environ.get("ALTINET_LLAMA_TEMPERATURE", "0.7"))
+_llama_stop_sequences = os.environ.get("ALTINET_LLAMA_STOP_SEQUENCES", "")
+if _llama_stop_sequences:
+    LLAMA_STOP_SEQUENCES = tuple(
+        sequence.strip()
+        for sequence in _llama_stop_sequences.split("|")
+        if sequence.strip()
+    )
+else:
+    LLAMA_STOP_SEQUENCES: tuple[str, ...] = tuple()

@@ -60,6 +60,8 @@ function initialiseViewer(containerEl, objUrl) {
     color: 0xd4dae4,
     roughness: 0.6,
     metalness: 0.05,
+    transparent: true,
+    opacity: 0.5,
   });
 
   const roofMaterial = new THREE.MeshStandardMaterial({

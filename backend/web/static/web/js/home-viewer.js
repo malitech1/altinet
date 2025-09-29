@@ -49,13 +49,6 @@ function initialiseViewer(containerEl, objUrl) {
 
   scene.add(ambientLight, keyLight, fillLight);
 
-  const groundGeometry = new THREE.CircleGeometry(6, 64);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xdfe6f3 });
-  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.001;
-  scene.add(ground);
-
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0xd4dae4,
     roughness: 0.6,

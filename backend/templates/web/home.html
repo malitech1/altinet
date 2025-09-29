@@ -84,8 +84,48 @@
     </section>
   </div>
 </div>
+<div class="row justify-content-center mt-4">
+  <div class="col-12 col-xl-10">
+    <section class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-4 p-md-5">
+      <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4">
+        <div>
+          <h2 class="h4 fw-semibold mb-2">Ask the Altinet assistant</h2>
+          <p class="text-muted mb-0">Summarize readings, plan automations, or get quick insights.</p>
+        </div>
+      </div>
+      <form class="mb-4" data-llm-form>
+        <div class="mb-3">
+          <label class="form-label" for="llmPromptInput">Describe what you need</label>
+          <textarea
+            id="llmPromptInput"
+            class="form-control"
+            rows="4"
+            placeholder="Explain the current weather outlook or draft a new automation trigger..."
+            required
+            data-llm-input
+          ></textarea>
+        </div>
+        <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-3">
+          <button type="submit" class="btn btn-primary" data-llm-submit>Send to assistant</button>
+          <div class="text-muted small" data-llm-status aria-live="polite"></div>
+        </div>
+      </form>
+      <div>
+        <h3 class="h5 fw-semibold mb-2">Assistant response</h3>
+        <div
+          class="bg-light border border-secondary-subtle rounded-3 p-3"
+          data-llm-response
+          aria-live="polite"
+        >
+          Responses will appear here once you submit a prompt.
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script type="module" src="{% static 'web/js/home-viewer.js' %}"></script>
+<script type="module" src="{% static 'web/js/home-llm.js' %}"></script>
 {% endblock %}

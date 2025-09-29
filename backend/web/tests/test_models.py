@@ -13,3 +13,4 @@ def test_load_returns_defaults_when_table_missing(monkeypatch):
     assert settings.pk is None
     assert settings.site_name == "Altinet"
     assert settings.maintenance_mode is False
+    assert settings.home_address == ""

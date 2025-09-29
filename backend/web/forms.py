@@ -25,10 +25,19 @@ class SystemSettingsForm(forms.ModelForm):
 
     class Meta:
         model = SystemSettings
-        fields = ["site_name", "support_email", "maintenance_mode", "default_theme"]
+        fields = [
+            "site_name",
+            "support_email",
+            "maintenance_mode",
+            "default_theme",
+            "home_address",
+        ]
         widgets = {
             "site_name": forms.TextInput(attrs={"class": "form-control"}),
             "support_email": forms.EmailInput(attrs={"class": "form-control"}),
             "maintenance_mode": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "default_theme": forms.Select(attrs={"class": "form-select"}),
+            "home_address": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "221B Baker Street, London"}
+            ),
         }

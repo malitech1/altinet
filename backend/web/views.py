@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from .forms import SystemSettingsForm, UserSettingsForm
 from .models import SystemSettings
+from .weather import fetch_weather_snapshot
 
 
 @login_required
@@ -25,6 +26,10 @@ def home(request):
         "air_quality_index": None,
         "energy_usage_kw": None,
     }
+
+    system_settings = SystemSettings.load()
+    weather_snapshot = fetch_weather_snapshot(system_settings.home_address)
+    environment_snapshot.update(weather_snapshot)
 
     dashboard_metrics = [
         {

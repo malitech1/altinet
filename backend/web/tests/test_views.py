@@ -17,7 +17,9 @@ def test_home_requires_authentication(client: Client) -> None:
     assert reverse("login") in response.url
 
 
-def test_home_renders_for_authenticated_user(client: Client) -> None:
+def test_home_renders_for_authenticated_user(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("web.views.fetch_weather_snapshot", lambda _: {})
+
     user = User.objects.create_user(username="tester", password="password123")
     client.force_login(user)
 
@@ -72,6 +74,7 @@ def test_operator_can_adjust_system_settings(client: Client) -> None:
             "system-support_email": "support@example.com",
             "system-maintenance_mode": "on",
             "system-default_theme": "dark",
+            "system-home_address": "1600 Pennsylvania Avenue NW, Washington, DC",
             "save_system": "1",
         },
         follow=True,
@@ -84,3 +87,6 @@ def test_operator_can_adjust_system_settings(client: Client) -> None:
     assert settings_obj.support_email == "support@example.com"
     assert settings_obj.maintenance_mode is True
     assert settings_obj.default_theme == "dark"
+    assert (
+        settings_obj.home_address == "1600 Pennsylvania Avenue NW, Washington, DC"
+    )

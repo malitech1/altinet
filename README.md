@@ -133,6 +133,7 @@ assistant locally:
    The home dashboard ships with a basic form that posts to the same endpoint
    (`/` → *Assistant* card) so operators can experiment without leaving the UI.
 
+
 ### Query the assistant from ROS 2
 
 The ROS 2 workspace also exposes the assistant through a synchronous service so
@@ -164,6 +165,7 @@ fields (`model`, `prompt_tokens`, `completion_tokens`). Leave `max_tokens` or
 `temperature` unset to fall back to the defaults configured on the node. When
 invoking the service from your own node import the generated interface and call
 it through a `Client<PromptLLM>` just like any other ROS 2 service.
+
 
 ### Builder → Blender → Dashboard workflow
 

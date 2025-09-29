@@ -1,0 +1,86 @@
+{% extends "web/base.html" %}
+{% block title %}Settings · Altinet{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-12 col-xl-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-dark text-white">User profile</div>
+      <div class="card-body">
+        <p class="text-muted">Update how your information appears across the platform.</p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="row g-3">
+            {% for field in user_form %}
+            <div class="col-12">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}
+              <div class="form-text">{{ field.help_text }}</div>
+              {% endif %}
+              {% for error in field.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mt-4 text-end">
+            <button class="btn btn-primary" name="save_user" type="submit">Save profile</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-dark text-white">System configuration</div>
+      <div class="card-body">
+        <p class="text-muted">Control the defaults presented to all operators.</p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label" for="{{ system_form.site_name.id_for_label }}">{{ system_form.site_name.label }}</label>
+              {{ system_form.site_name }}
+              {% for error in system_form.site_name.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="{{ system_form.support_email.id_for_label }}">{{ system_form.support_email.label }}</label>
+              {{ system_form.support_email }}
+              {% if system_form.support_email.help_text %}
+              <div class="form-text">{{ system_form.support_email.help_text }}</div>
+              {% endif %}
+              {% for error in system_form.support_email.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                {{ system_form.maintenance_mode }}
+                <label class="form-check-label" for="{{ system_form.maintenance_mode.id_for_label }}">
+                  {{ system_form.maintenance_mode.label }}
+                </label>
+              </div>
+              {% for error in system_form.maintenance_mode.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="{{ system_form.default_theme.id_for_label }}">{{ system_form.default_theme.label }}</label>
+              {{ system_form.default_theme }}
+              {% for error in system_form.default_theme.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="mt-4 text-end">
+            <button class="btn btn-primary" name="save_system" type="submit">Save system settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

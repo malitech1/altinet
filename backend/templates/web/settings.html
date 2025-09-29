@@ -74,6 +74,16 @@
               <div class="invalid-feedback d-block">{{ error }}</div>
               {% endfor %}
             </div>
+            <div class="col-12">
+              <label class="form-label" for="{{ system_form.home_address.id_for_label }}">{{ system_form.home_address.label }}</label>
+              {{ system_form.home_address }}
+              {% if system_form.home_address.help_text %}
+              <div class="form-text">{{ system_form.home_address.help_text }}</div>
+              {% endif %}
+              {% for error in system_form.home_address.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
           </div>
           <div class="mt-4 text-end">
             <button class="btn btn-primary" name="save_system" type="submit">Save system settings</button>

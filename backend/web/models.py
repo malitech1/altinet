@@ -17,6 +17,11 @@ class SystemSettings(models.Model):
     support_email = models.EmailField(blank=True)
     maintenance_mode = models.BooleanField(default=False)
     default_theme = models.CharField(max_length=20, choices=THEME_CHOICES, default="system")
+    home_address = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Street address used to fetch local weather conditions.",
+    )
 
     updated_at = models.DateTimeField(auto_now=True)
 

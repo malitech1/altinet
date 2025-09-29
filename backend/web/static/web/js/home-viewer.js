@@ -101,6 +101,8 @@ function initialiseViewer(containerEl, objUrl) {
 }
 
 function prepareModel(model, scene, controls) {
+  model.rotation.x = -Math.PI / 2;
+
   const target = new THREE.Vector3();
   const box = new THREE.Box3().setFromObject(model);
   box.getCenter(target);
@@ -231,6 +233,7 @@ function buildMeshGroup(groups, materials) {
     mesh.name = name;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+
     root.add(mesh);
   }
 

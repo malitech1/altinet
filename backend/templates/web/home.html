@@ -11,20 +11,8 @@
 <div class="row justify-content-center">
   <div class="col-12 col-xl-10">
     <div class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-4 p-md-5 mb-4">
-      <div class="row gy-4 align-items-center">
-        <div class="col-lg-5 text-lg-start text-center">
-          <h1 class="display-6 fw-semibold mb-3">Welcome home</h1>
-          <p class="text-muted mb-4">
-            Explore a 3D overview of your connected home, exported directly
-            from the latest Blender build of your floorplan. Rotate, zoom and
-            pan to review every room and device placement.
-          </p>
-          <div class="d-grid d-sm-flex gap-2">
-            <a class="btn btn-primary btn-lg" href="{% url 'admin:index' %}">Open admin</a>
-            <a class="btn btn-outline-secondary btn-lg" href="{% url 'web:builder' %}">Edit floorplan</a>
-          </div>
-        </div>
-        <div class="col-lg-7">
+      <div class="row gy-4 align-items-center flex-lg-row-reverse">
+        <div class="col-12 col-lg-8 col-xl-9">
           <div
             id="home-viewer"
             class="viewer-shell rounded-4 border border-2 border-secondary-subtle position-relative overflow-hidden"
@@ -51,6 +39,18 @@
                 </p>
               </div>
             </noscript>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4 col-xl-3 text-lg-start text-center">
+          <h1 class="display-5 fw-semibold mb-3">Welcome home</h1>
+          <p class="text-muted mb-4">
+            Explore a 3D overview of your connected home, exported directly
+            from the latest Blender build of your floorplan. Rotate, zoom and
+            pan to review every room and device placement.
+          </p>
+          <div class="d-grid d-sm-flex gap-2 justify-content-center justify-content-lg-start">
+            <a class="btn btn-primary btn-lg" href="{% url 'admin:index' %}">Open admin</a>
+            <a class="btn btn-outline-secondary btn-lg" href="{% url 'web:builder' %}">Edit floorplan</a>
           </div>
         </div>
       </div>

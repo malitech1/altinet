@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from .forms import SystemSettingsForm, UserSettingsForm
 from .models import SystemSettings
@@ -12,11 +13,113 @@ from .models import SystemSettings
 @login_required
 def home(request):
     """Render the main dashboard once the user is authenticated."""
+    local_now = timezone.localtime()
+
+    environment_snapshot = {
+        "people_present": 0,
+        "local_time": local_now,
+        "outside_temperature_c": None,
+        "outside_humidity": None,
+        "weather_summary": None,
+        "wind_speed_kmh": None,
+        "air_quality_index": None,
+        "energy_usage_kw": None,
+    }
+
+    dashboard_metrics = [
+        {
+            "label": "People detected",
+            "value": str(environment_snapshot["people_present"]),
+            "detail": "Across all monitored rooms",
+        },
+        {
+            "label": "Local time",
+            "value": local_now.strftime("%I:%M %p").lstrip("0"),
+            "detail": local_now.strftime("%A, %B %d").replace(" 0", " "),
+        },
+        {
+            "label": "Outside temperature",
+            "value": (
+                f"{environment_snapshot['outside_temperature_c']:.1f}°C"
+                if environment_snapshot["outside_temperature_c"] is not None
+                else "—"
+            ),
+            "detail": (
+                "Latest reading from weather service"
+                if environment_snapshot["outside_temperature_c"] is not None
+                else "Awaiting sensor data"
+            ),
+        },
+        {
+            "label": "Humidity",
+            "value": (
+                f"{environment_snapshot['outside_humidity']}%"
+                if environment_snapshot["outside_humidity"] is not None
+                else "—"
+            ),
+            "detail": (
+                "Outdoor relative humidity"
+                if environment_snapshot["outside_humidity"] is not None
+                else "Awaiting sensor data"
+            ),
+        },
+        {
+            "label": "Weather",
+            "value": environment_snapshot["weather_summary"] or "—",
+            "detail": (
+                "Live conditions from weather integration"
+                if environment_snapshot["weather_summary"]
+                else "Awaiting sensor data"
+            ),
+        },
+        {
+            "label": "Wind speed",
+            "value": (
+                f"{environment_snapshot['wind_speed_kmh']:.1f} km/h"
+                if environment_snapshot["wind_speed_kmh"] is not None
+                else "—"
+            ),
+            "detail": (
+                "Measured at nearby weather station"
+                if environment_snapshot["wind_speed_kmh"] is not None
+                else "Awaiting sensor data"
+            ),
+        },
+        {
+            "label": "Air quality",
+            "value": (
+                f"AQI {environment_snapshot['air_quality_index']}"
+                if environment_snapshot["air_quality_index"] is not None
+                else "—"
+            ),
+            "detail": (
+                "EPA standard air quality index"
+                if environment_snapshot["air_quality_index"] is not None
+                else "Awaiting sensor data"
+            ),
+        },
+        {
+            "label": "Energy usage",
+            "value": (
+                f"{environment_snapshot['energy_usage_kw']:.2f} kW"
+                if environment_snapshot["energy_usage_kw"] is not None
+                else "—"
+            ),
+            "detail": (
+                "Whole-home consumption"
+                if environment_snapshot["energy_usage_kw"] is not None
+                else "Awaiting sensor data"
+            ),
+        },
+    ]
+
     return render(
         request,
         "web/home.html",
         {
             "home_model_path": getattr(settings, "HOME_MODEL_STATIC_PATH", "web/models/home.obj"),
+            "environment_snapshot": environment_snapshot,
+            "dashboard_metrics": dashboard_metrics,
         },
     )
 

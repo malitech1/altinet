@@ -99,7 +99,7 @@ def _extract_next_data(html: str) -> Optional[Dict[str, Any]]:
     """Extract the Next.js data blob from the rendered HTML."""
 
     script_pattern = re.compile(
-        r"<script\b[^>]*\bid=(\"|')__NEXT_DATA__\1[^>]*>",
+        r"<script\b[^>]*\bid\s*=\s*(\"|')__NEXT_DATA__\1[^>]*>",
         flags=re.IGNORECASE,
     )
     match = script_pattern.search(html)

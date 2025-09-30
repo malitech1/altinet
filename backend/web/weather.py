@@ -49,6 +49,7 @@ class WeatherSnapshot:
     humidity_percent: Optional[int] = None
     summary: Optional[str] = None
     wind_speed_kmh: Optional[float] = None
+    wind_direction_deg: Optional[float] = None
     air_quality_index: Optional[int] = None
 
     def as_environment_fields(self) -> Dict[str, Any]:
@@ -59,6 +60,7 @@ class WeatherSnapshot:
             "outside_humidity": self.humidity_percent,
             "weather_summary": self.summary,
             "wind_speed_kmh": self.wind_speed_kmh,
+            "wind_direction_deg": self.wind_direction_deg,
             "air_quality_index": self.air_quality_index,
         }
 
@@ -143,6 +145,7 @@ def fetch_weather_snapshot(address: str) -> Dict[str, Any]:
             else None,
             summary=_parse_weather_summary(current_weather.get("weathercode")),
             wind_speed_kmh=current_weather.get("windspeed"),
+            wind_direction_deg=current_weather.get("winddirection"),
         )
 
         air_quality_response = httpx.get(

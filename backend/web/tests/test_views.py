@@ -29,6 +29,46 @@ def test_home_renders_for_authenticated_user(client: Client, monkeypatch: pytest
     assert b"home-viewer" in response.content
 
 
+def test_weather_snapshot_endpoint_returns_data(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "web.views.fetch_weather_snapshot",
+        lambda _: {
+            "outside_temperature_c": 25.2,
+            "outside_humidity": 68,
+            "weather_summary": "Sunny",
+            "wind_speed_kmh": 12.5,
+            "wind_direction_deg": 180,
+            "air_quality_index": 47,
+        },
+    )
+
+    user = User.objects.create_user(username="weather", password="password123")
+    client.force_login(user)
+
+    response = client.get(reverse("web:weather-snapshot"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["wind_direction_cardinal"] == "S"
+    assert payload["data"]["wind_direction_deg"] == 180
+
+
+def test_weather_snapshot_endpoint_handles_empty_payload(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("web.views.fetch_weather_snapshot", lambda _: {})
+
+    user = User.objects.create_user(username="empty", password="password123")
+    client.force_login(user)
+
+    response = client.get(reverse("web:weather-snapshot"))
+
+    assert response.status_code == 503
+
+
 def test_settings_requires_authentication(client: Client) -> None:
     response = client.get(reverse("web:settings"))
 

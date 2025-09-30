@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -7,13 +9,10 @@ from web.weather import fetch_weather_snapshot
 
 
 class MockResponse:
-    def __init__(self, payload: dict, status_code: int = 200, url: str = "https://example.com"):
-        self._payload = payload
+    def __init__(self, *, text: str, status_code: int = 200, url: str = "https://example.com") -> None:
+        self.text = text
         self.status_code = status_code
         self.url = url
-
-    def json(self) -> dict:
-        return self._payload
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
@@ -23,69 +22,72 @@ class MockResponse:
             )
 
 
-@pytest.mark.parametrize("address", ["", "   "])
-def test_fetch_weather_snapshot_returns_empty_for_blank_address(address: str) -> None:
-    assert fetch_weather_snapshot(address) == {}
+def _build_sample_html(payload: dict) -> str:
+    return (
+        "<html><head></head><body>"
+        f"<script id=\"__NEXT_DATA__\" type=\"application/json\">{json.dumps(payload)}</script>"
+        "</body></html>"
+    )
 
 
-def test_fetch_weather_snapshot_parses_weather(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_get(url: str, params: dict | None = None, timeout: float | None = None):
-        if "geocoding" in url:
-            return MockResponse(
-                {
-                    "results": [
-                        {
-                            "latitude": 51.5,
-                            "longitude": -0.1,
-                            "timezone": "Europe/London",
+def test_fetch_weather_snapshot_parses_scraped_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "props": {
+            "pageProps": {
+                "dataStore": {
+                    "wxObservation": {
+                        "current": {
+                            "temperature": 21.4,
+                            "relativeHumidity": 63,
+                            "windSpeed": 18.6,
+                            "windDirection": 140,
+                            "windDirectionCardinal": "SE",
+                            "wxPhraseLong": "Partly cloudy",
                         }
-                    ]
-                }
-            )
-        if "forecast" in url:
-            return MockResponse(
-                {
-                    "current_weather": {
-                        "temperature": 20.1,
-                        "weathercode": 2,
-                        "windspeed": 12.3,
-                        "winddirection": 225,
-                        "time": "2024-01-01T12:00",
                     },
-                    "hourly": {
-                        "time": ["2024-01-01T12:00"],
-                        "relativehumidity_2m": [55],
+                    "airQuality": {
+                        "details": {"airQualityIndex": 41.6}
                     },
-                }
-            )
-        return MockResponse(
-            {
-                "hourly": {
-                    "time": ["2024-01-01T12:00"],
-                    "us_aqi": [42],
-                }
+                },
+                "meta": {"timeZoneId": "Australia/Brisbane"},
             }
-        )
+        }
+    }
+
+    html = _build_sample_html(payload)
+
+    def fake_get(url: str, headers: dict | None = None, timeout: float | None = None):
+        assert "weather.com" in url
+        return MockResponse(text=html, url=url)
 
     monkeypatch.setattr("web.weather.httpx.get", fake_get)
 
-    snapshot = fetch_weather_snapshot("London")
+    snapshot = fetch_weather_snapshot("Anywhere")
 
     assert snapshot == {
-        "outside_temperature_c": 20.1,
-        "outside_humidity": 55,
+        "outside_temperature_c": pytest.approx(21.4),
+        "outside_humidity": 63,
         "weather_summary": "Partly cloudy",
-        "wind_speed_kmh": 12.3,
-        "wind_direction_deg": 225,
+        "wind_speed_kmh": pytest.approx(18.6),
+        "wind_direction_deg": pytest.approx(140.0),
         "air_quality_index": 42,
-        "location_timezone": "Europe/London",
+        "location_timezone": "Australia/Brisbane",
     }
 
 
-def test_fetch_weather_snapshot_handles_http_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_get(url: str, params: dict | None = None, timeout: float | None = None):
-        return MockResponse({}, status_code=500)
+def test_fetch_weather_snapshot_returns_empty_when_no_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_get(url: str, headers: dict | None = None, timeout: float | None = None):
+        return MockResponse(text="<html><body>No weather here</body></html>")
 
     monkeypatch.setattr("web.weather.httpx.get", fake_get)
 
-    assert fetch_weather_snapshot("London") == {}
+    assert fetch_weather_snapshot("Anywhere") == {}
+
+
+def test_fetch_weather_snapshot_handles_http_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_get(url: str, headers: dict | None = None, timeout: float | None = None):
+        return MockResponse(text="", status_code=500)
+
+    monkeypatch.setattr("web.weather.httpx.get", fake_get)
+
+    assert fetch_weather_snapshot("Anywhere") == {}

@@ -3,9 +3,10 @@ from __future__ import annotations
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .forms import SystemSettingsForm, UserSettingsForm
 from .models import SystemSettings
@@ -36,17 +37,8 @@ def _wind_direction_to_cardinal(degrees: float | None) -> str | None:
 def home(request):
     """Render the main dashboard once the user is authenticated."""
     system_settings = SystemSettings.load()
-    weather_snapshot = fetch_weather_snapshot(system_settings.home_address)
-
     base_now = timezone.now()
-    location_timezone = weather_snapshot.get("location_timezone")
-    if location_timezone:
-        try:
-            local_now = base_now.astimezone(ZoneInfo(location_timezone))
-        except ZoneInfoNotFoundError:
-            local_now = timezone.localtime(base_now)
-    else:
-        local_now = timezone.localtime(base_now)
+    local_now = timezone.localtime(base_now)
 
     environment_snapshot = {
         "people_present": 0,
@@ -62,11 +54,6 @@ def home(request):
         "air_quality_index": None,
         "energy_usage_kw": None,
     }
-
-    environment_snapshot.update(weather_snapshot)
-    environment_snapshot["wind_direction_cardinal"] = _wind_direction_to_cardinal(
-        environment_snapshot.get("wind_direction_deg")
-    )
 
     dashboard_metrics = [
         {
@@ -162,6 +149,7 @@ def home(request):
             "home_model_path": getattr(settings, "HOME_MODEL_STATIC_PATH", "web/models/home.obj"),
             "environment_snapshot": environment_snapshot,
             "dashboard_metrics": dashboard_metrics,
+            "weather_endpoint": reverse("web:weather-snapshot"),
         },
     )
 
@@ -170,6 +158,27 @@ def home(request):
 def builder(request):
     """Display the interactive home builder canvas."""
     return render(request, "web/builder.html")
+
+
+@login_required
+def weather_snapshot(request):
+    """Return the latest scraped weather information for Macleay Island."""
+
+    system_settings = SystemSettings.load()
+    snapshot = fetch_weather_snapshot(system_settings.home_address)
+    if snapshot:
+        snapshot["wind_direction_cardinal"] = _wind_direction_to_cardinal(
+            snapshot.get("wind_direction_deg")
+        )
+        return JsonResponse(
+            {
+                "success": True,
+                "data": snapshot,
+                "retrieved_at": timezone.now().isoformat(),
+            }
+        )
+
+    return JsonResponse({"success": False}, status=503)
 
 
 @login_required

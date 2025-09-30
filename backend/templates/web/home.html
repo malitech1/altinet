@@ -7,10 +7,98 @@
 <link rel="stylesheet" href="{% static 'web/css/home.css' %}" />
 {% endblock %}
 
+{% block body_class %}home-page{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-xl-11">
-    <div class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-3 p-md-4 p-xl-5 mb-4">
+<div class="row g-4 align-items-stretch home-layout">
+  <div class="col-12 col-xl-4 col-xxl-3">
+    <section class="environment-card bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm h-100 p-3 p-lg-4">
+      <div class="d-flex flex-column h-100">
+        <header class="mb-4">
+          <p class="text-uppercase text-primary fw-semibold small mb-1">Live environment</p>
+          <h1 class="h4 fw-semibold mb-0">Your home at a glance</h1>
+        </header>
+        <div class="mb-4">
+          <p class="display-6 fw-semibold mb-1">{{ environment_snapshot.local_time|date:"g:i A" }}</p>
+          <p class="text-muted mb-0">{{ environment_snapshot.local_time|date:"l, F j" }}</p>
+        </div>
+        <div class="environment-metrics row row-cols-1 row-cols-sm-2 g-3">
+          <div class="col">
+            <article class="environment-metric h-100">
+              <h2 class="h6 text-uppercase text-muted mb-2">People present</h2>
+              <p class="metric-value mb-0">{{ environment_snapshot.people_present }}</p>
+            </article>
+          </div>
+          <div class="col">
+            <article class="environment-metric h-100">
+              <h2 class="h6 text-uppercase text-muted mb-2">Occupants</h2>
+              {% if environment_snapshot.people_list %}
+                <ul class="metric-list mb-0">
+                  {% for person in environment_snapshot.people_list %}
+                    <li>{{ person }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="metric-placeholder mb-0">No occupants detected</p>
+              {% endif %}
+            </article>
+          </div>
+          <div class="col">
+            <article class="environment-metric h-100">
+              <h2 class="h6 text-uppercase text-muted mb-2">Outside temperature</h2>
+              <p class="metric-value mb-0">
+                {% if environment_snapshot.outside_temperature_c is not None %}
+                  {{ environment_snapshot.outside_temperature_c|floatformat:1 }}°C
+                {% else %}
+                  —
+                {% endif %}
+              </p>
+            </article>
+          </div>
+          <div class="col">
+            <article class="environment-metric h-100">
+              <h2 class="h6 text-uppercase text-muted mb-2">Average indoor temperature</h2>
+              <p class="metric-value mb-0">
+                {% if environment_snapshot.average_indoor_temperature_c is not None %}
+                  {{ environment_snapshot.average_indoor_temperature_c|floatformat:1 }}°C
+                {% else %}
+                  —
+                {% endif %}
+              </p>
+            </article>
+          </div>
+          <div class="col">
+            <article class="environment-metric h-100">
+              <h2 class="h6 text-uppercase text-muted mb-2">Wind</h2>
+              <p class="metric-value mb-0">
+                {% if environment_snapshot.wind_speed_kmh is not None %}
+                  {{ environment_snapshot.wind_speed_kmh|floatformat:1 }} km/h
+                  {% if environment_snapshot.wind_direction_cardinal %}
+                    <span class="text-muted">({{ environment_snapshot.wind_direction_cardinal }})</span>
+                  {% endif %}
+                {% else %}
+                  —
+                {% endif %}
+              </p>
+            </article>
+          </div>
+          <div class="col">
+            <article class="environment-metric h-100">
+              <h2 class="h6 text-uppercase text-muted mb-2">Local weather</h2>
+              <p class="metric-value mb-0">{{ environment_snapshot.weather_summary|default:"—" }}</p>
+            </article>
+          </div>
+        </div>
+        <div class="mt-auto pt-4">
+          <p class="text-muted small mb-0">
+            Data updates automatically as new sensor readings arrive.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="col-12 col-xl-8 col-xxl-9">
+    <div class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-3 p-lg-4 h-100">
       <div
         id="home-viewer"
         class="viewer-shell rounded-4 border border-2 border-secondary-subtle position-relative overflow-hidden"

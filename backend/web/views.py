@@ -11,6 +11,26 @@ from .models import SystemSettings
 from .weather import fetch_weather_snapshot
 
 
+def _wind_direction_to_cardinal(degrees: float | None) -> str | None:
+    """Convert a wind direction in degrees to a cardinal label."""
+
+    if degrees is None:
+        return None
+
+    cardinal_points = [
+        "N",
+        "NE",
+        "E",
+        "SE",
+        "S",
+        "SW",
+        "W",
+        "NW",
+    ]
+    index = int((degrees % 360) / 45 + 0.5) % len(cardinal_points)
+    return cardinal_points[index]
+
+
 @login_required
 def home(request):
     """Render the main dashboard once the user is authenticated."""
@@ -18,11 +38,15 @@ def home(request):
 
     environment_snapshot = {
         "people_present": 0,
+        "people_list": [],
         "local_time": local_now,
         "outside_temperature_c": None,
         "outside_humidity": None,
+        "average_indoor_temperature_c": None,
         "weather_summary": None,
         "wind_speed_kmh": None,
+        "wind_direction_deg": None,
+        "wind_direction_cardinal": None,
         "air_quality_index": None,
         "energy_usage_kw": None,
     }
@@ -30,6 +54,9 @@ def home(request):
     system_settings = SystemSettings.load()
     weather_snapshot = fetch_weather_snapshot(system_settings.home_address)
     environment_snapshot.update(weather_snapshot)
+    environment_snapshot["wind_direction_cardinal"] = _wind_direction_to_cardinal(
+        environment_snapshot.get("wind_direction_deg")
+    )
 
     dashboard_metrics = [
         {

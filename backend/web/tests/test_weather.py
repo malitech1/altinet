@@ -49,6 +49,7 @@ def test_fetch_weather_snapshot_parses_weather(monkeypatch: pytest.MonkeyPatch) 
                         "temperature": 20.1,
                         "weathercode": 2,
                         "windspeed": 12.3,
+                        "winddirection": 225,
                         "time": "2024-01-01T12:00",
                     },
                     "hourly": {
@@ -75,6 +76,7 @@ def test_fetch_weather_snapshot_parses_weather(monkeypatch: pytest.MonkeyPatch) 
         "outside_humidity": 55,
         "weather_summary": "Partly cloudy",
         "wind_speed_kmh": 12.3,
+        "wind_direction_deg": 225,
         "air_quality_index": 42,
     }
 

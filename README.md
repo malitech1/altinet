@@ -96,10 +96,13 @@ offline LLaMA model configured through environment variables. To enable the
 assistant locally:
 
 1. Point the backend at your `llama.cpp` compatible weights and optional
-   generation settings before starting Django:
+   generation settings before starting Django. A copy of
+   `tinyllama-1.1b-chat-v1.0.Q2_K.gguf` placed in
+   `assets/models/` is detected automatically, otherwise configure the path
+   manually:
 
    ```bash
-   export ALTINET_LLAMA_MODEL_PATH=/absolute/path/to/ggml-model.bin
+   export ALTINET_LLAMA_MODEL_PATH=/absolute/path/to/ggml-model.bin  # optional when using the default TinyLlama weight
    export ALTINET_LLAMA_CONTEXT=2048            # optional
    export ALTINET_LLAMA_MAX_TOKENS=256          # optional
    export ALTINET_LLAMA_TEMPERATURE=0.7         # optional

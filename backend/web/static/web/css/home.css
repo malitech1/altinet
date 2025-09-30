@@ -9,34 +9,14 @@
   height: 100% !important;
 }
 
-.hero-card {
-  position: relative;
-}
-
-.hero-card .viewer-shell {
-  margin-top: -2rem;
-}
-
-@media (min-width: 768px) {
-  .hero-card .viewer-shell {
-    margin-top: -3rem;
-  }
-}
-
-@media (min-width: 1200px) {
-  .hero-card .viewer-shell {
-    margin-top: -4.25rem;
-  }
+.viewer-shell {
+  border-style: solid;
 }
 
 .viewer-overlay {
   position: absolute;
   inset: 0;
   background: rgba(255, 255, 255, 0.85);
-}
-
-.viewer-shell {
-  border-style: solid;
 }
 
 .metric-card {
@@ -65,18 +45,11 @@
   flex-grow: 1;
   overflow-y: auto;
   padding-right: 0.25rem;
-  grid-template-columns: minmax(0, 1fr);
 }
 
 @media (max-width: 991.98px) {
   .snapshot-panel [data-role="metrics"] {
     max-height: none;
     overflow: visible;
-  }
-}
-
-@media (min-width: 576px) {
-  .snapshot-panel [data-role="metrics"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -103,47 +103,13 @@ function prepareModel(model, scene, controls) {
   box.getCenter(target);
   const size = new THREE.Vector3();
   box.getSize(size);
-  const boundingSphere = box.getBoundingSphere(new THREE.Sphere());
-  const radius =
-    boundingSphere?.radius || Math.max(size.x, size.y, size.z) * 0.5 || 1;
 
   model.position.sub(target);
   model.position.y -= box.min.y;
 
   scene.add(model);
 
-  const desiredTargetY = size.y * 0.45;
-  const camera = controls.object;
-  const epsilon = 0.05;
-  const maxTargetY = camera.position.y - epsilon;
-
-  if (desiredTargetY > maxTargetY) {
-    const delta = desiredTargetY - maxTargetY;
-    camera.position.y += delta;
-  }
-
-  const targetY = Math.min(desiredTargetY, camera.position.y - epsilon);
-  controls.target.set(0, targetY, 0);
-  const currentDistance = camera.position.distanceTo(controls.target);
-
-  const margin = Math.max(radius * 0.05, 0.25);
-  let minDistance = Math.max(radius + margin, 0.5);
-  let maxDistance = Math.max(radius * 4 + margin, minDistance + margin);
-
-  if (currentDistance > maxDistance) {
-    maxDistance = currentDistance + margin;
-  }
-
-  if (currentDistance < minDistance) {
-    const direction = new THREE.Vector3()
-      .subVectors(camera.position, controls.target)
-      .normalize();
-    const safeDistance = minDistance;
-    camera.position.copy(direction.multiplyScalar(safeDistance).add(controls.target));
-  }
-
-  controls.minDistance = minDistance;
-  controls.maxDistance = Math.max(maxDistance, minDistance + margin);
+  controls.target.set(0, size.y * 0.45, 0);
   controls.update();
 }
 

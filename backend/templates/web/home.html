@@ -19,8 +19,12 @@
           <h1 class="h4 fw-semibold mb-0">Your home at a glance</h1>
         </header>
         <div class="mb-4">
-          <p class="display-6 fw-semibold mb-1">{{ environment_snapshot.local_time|date:"g:i A" }}</p>
-          <p class="text-muted mb-0">{{ environment_snapshot.local_time|date:"l, F j" }}</p>
+          <p id="local-time-display" class="display-6 fw-semibold mb-1">
+            {{ environment_snapshot.local_time|date:"g:i A" }}
+          </p>
+          <p id="local-date-display" class="text-muted mb-0">
+            {{ environment_snapshot.local_time|date:"l, F j" }}
+          </p>
         </div>
         <div class="environment-metrics row row-cols-1 row-cols-sm-2 g-3">
           <div class="col">
@@ -133,4 +137,5 @@
 
 {% block extra_scripts %}
 <script type="module" src="{% static 'web/js/home-viewer.js' %}"></script>
+<script type="module" src="{% static 'web/js/home-local-time.js' %}"></script>
 {% endblock %}

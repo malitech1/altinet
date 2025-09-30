@@ -78,6 +78,7 @@ def test_fetch_weather_snapshot_parses_weather(monkeypatch: pytest.MonkeyPatch) 
         "wind_speed_kmh": 12.3,
         "wind_direction_deg": 225,
         "air_quality_index": 42,
+        "location_timezone": "Europe/London",
     }
 
 

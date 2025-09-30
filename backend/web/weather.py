@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import re
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional
 
@@ -98,21 +97,16 @@ def _to_int(value: Any) -> Optional[int]:
 def _extract_next_data(html: str) -> Optional[Dict[str, Any]]:
     """Extract the Next.js data blob from the rendered HTML."""
 
-    script_pattern = re.compile(
-        r"<script\b[^>]*\bid\s*=\s*(\"|')__NEXT_DATA__\1[^>]*>",
-        flags=re.IGNORECASE,
-    )
-    match = script_pattern.search(html)
-    if not match:
+    marker = '<script id="__NEXT_DATA__" type="application/json">'
+    start = html.find(marker)
+    if start == -1:
+        return None
+    start += len(marker)
+    end = html.find("</script>", start)
+    if end == -1:
         return None
 
-    start = match.end()
-    closing_pattern = re.compile(r"</script\s*>", flags=re.IGNORECASE)
-    closing_match = closing_pattern.search(html, start)
-    if not closing_match:
-        return None
-
-    payload = html[start:closing_match.start()]
+    payload = html[start:end]
     try:
         return json.loads(payload)
     except json.JSONDecodeError:

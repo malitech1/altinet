@@ -112,8 +112,18 @@ function prepareModel(model, scene, controls) {
 
   scene.add(model);
 
-  controls.target.set(0, size.y * 0.45, 0);
+  const desiredTargetY = size.y * 0.45;
   const camera = controls.object;
+  const epsilon = 0.05;
+  const maxTargetY = camera.position.y - epsilon;
+
+  if (desiredTargetY > maxTargetY) {
+    const delta = desiredTargetY - maxTargetY;
+    camera.position.y += delta;
+  }
+
+  const targetY = Math.min(desiredTargetY, camera.position.y - epsilon);
+  controls.target.set(0, targetY, 0);
   const currentDistance = camera.position.distanceTo(controls.target);
 
   const margin = Math.max(radius * 0.05, 0.25);

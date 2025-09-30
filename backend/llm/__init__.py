@@ -1,3 +1,3 @@
-"""Offline LLaMA integration for Altinet."""
+"""Hosted LLM integration for Altinet."""
 
 __all__ = ["apps"]

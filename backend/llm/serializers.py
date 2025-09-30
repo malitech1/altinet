@@ -1,4 +1,4 @@
-"""Serializers for LLaMA endpoints."""
+"""Serializers for LLM endpoints."""
 
 from __future__ import annotations
 

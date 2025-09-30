@@ -1,14 +1,14 @@
-"""URL routing for the LLaMA app."""
+"""URL routing for the LLM app."""
 
 from __future__ import annotations
 
 from django.urls import path
 
-from .views import HealthView, LlamaPromptView
+from .views import HealthView, PromptView
 
 app_name = "llm"
 
 urlpatterns = [
-    path("prompt/", LlamaPromptView.as_view(), name="prompt"),
+    path("prompt/", PromptView.as_view(), name="prompt"),
     path("health/", HealthView.as_view(), name="health"),
 ]

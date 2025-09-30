@@ -51,13 +51,6 @@ function initialiseViewer(containerEl, objUrl) {
 
   scene.add(ambientLight, keyLight, fillLight);
 
-  const groundGeometry = new THREE.CircleGeometry(6, 64);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xdfe6f3 });
-  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.001;
-  scene.add(ground);
-
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0xd4dae4,
     roughness: 0.6,
@@ -110,10 +103,10 @@ function initialiseViewer(containerEl, objUrl) {
 }
 
 function prepareModel(model, scene, controls) {
-  // Rotate the model so it lies flat on the ground disk instead of standing
-  // upright. The OBJ geometry is authored with Z as the up axis, whereas the
-  // Three.js scene uses Y for the vertical axis. Rotating it by -90° around X
-  // brings the floor plane into alignment with the viewer ground plane.
+  // Rotate the model so it lies flat instead of standing upright. The OBJ
+  // geometry is authored with Z as the up axis, whereas the Three.js scene
+  // uses Y for the vertical axis. Rotating it by -90° around X brings the
+  // floor plane into alignment with the viewer's horizontal plane.
   model.rotation.x = -Math.PI / 2;
 
   const target = new THREE.Vector3();

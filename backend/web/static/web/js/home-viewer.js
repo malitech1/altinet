@@ -186,6 +186,18 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
     initialTargetDistance: targetDistance,
   };
 
+  const restoreBaseControls = () => {
+    controls.enableRotate = baseControlState.enableRotate;
+    controls.enablePan = baseControlState.enablePan;
+  };
+
+  const endTouchInteraction = () => {
+    touchState.active = false;
+    touchState.initialDistance = 0;
+    touchState.initialTargetDistance = targetDistance;
+    restoreBaseControls();
+  };
+
   const distanceBetweenTouches = (touches) => {
     if (touches.length < 2) {
       return 0;
@@ -266,6 +278,139 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
     }
   };
 
+  const registerLegacyTouchHandlers = () => {
+    domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+    domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+    domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+    domElement.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+  };
+
+  const canUsePointerEvents =
+    typeof window !== 'undefined' &&
+    'PointerEvent' in window &&
+    ((typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1) ||
+      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches));
+
+  if (canUsePointerEvents) {
+    const activePointers = new Map();
+
+    const pointerDistance = () => {
+      if (activePointers.size < 2) {
+        return 0;
+      }
+      const iterator = activePointers.values();
+      const first = iterator.next().value;
+      const second = iterator.next().value;
+      const dx = second.x - first.x;
+      const dy = second.y - first.y;
+      return Math.hypot(dx, dy);
+    };
+
+    const refreshBaseline = () => {
+      const distance = pointerDistance();
+      if (distance > 0) {
+        touchState.initialDistance = distance;
+        touchState.initialTargetDistance = targetDistance;
+      }
+    };
+
+    const beginPinch = () => {
+      controls.enableRotate = false;
+      controls.enablePan = false;
+      touchState.active = true;
+      refreshBaseline();
+    };
+
+    const updatePointer = (event) => {
+      activePointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+    };
+
+    const handlePointerDown = (event) => {
+      if (event.pointerType !== 'touch') {
+        return;
+      }
+      event.stopPropagation();
+      event.preventDefault();
+
+      updatePointer(event);
+      domElement.setPointerCapture?.(event.pointerId);
+
+      if (activePointers.size === 2) {
+        beginPinch();
+      }
+    };
+
+    const handlePointerMove = (event) => {
+      if (event.pointerType !== 'touch' || !activePointers.has(event.pointerId)) {
+        return;
+      }
+
+      event.stopPropagation();
+      event.preventDefault();
+
+      updatePointer(event);
+
+      if (!touchState.active) {
+        if (activePointers.size === 2) {
+          beginPinch();
+        }
+        return;
+      }
+
+      if (touchState.initialDistance <= 0) {
+        refreshBaseline();
+        return;
+      }
+
+      const distance = pointerDistance();
+      if (distance <= 0) {
+        return;
+      }
+
+      const scale = distance / touchState.initialDistance;
+      const desiredDistance = touchState.initialTargetDistance * Math.max(scale, 1e-4);
+      targetDistance = THREE.MathUtils.clamp(
+        desiredDistance,
+        minDistance,
+        maxDistance,
+      );
+    };
+
+    const handlePointerEnd = (event) => {
+      if (event.pointerType !== 'touch') {
+        return;
+      }
+
+      event.stopPropagation();
+
+      if (activePointers.has(event.pointerId)) {
+        activePointers.delete(event.pointerId);
+      }
+
+      domElement.releasePointerCapture?.(event.pointerId);
+
+      if (activePointers.size === 2) {
+        refreshBaseline();
+        return;
+      }
+
+      if (touchState.active) {
+        endTouchInteraction();
+      }
+    };
+
+    domElement.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    domElement.addEventListener('pointermove', handlePointerMove, { passive: false });
+    domElement.addEventListener('pointerup', handlePointerEnd, { passive: true });
+    domElement.addEventListener('pointercancel', handlePointerEnd, { passive: true });
+    domElement.addEventListener('pointerout', handlePointerEnd, { passive: true });
+    domElement.addEventListener('pointerleave', handlePointerEnd, { passive: true });
+  } else {
+    registerLegacyTouchHandlers();
+  }
   domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
   domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
   domElement.addEventListener('touchend', handleTouchEnd, { passive: true });

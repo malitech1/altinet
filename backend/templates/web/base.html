@@ -17,7 +17,19 @@
   <body class="bg-light {% block body_class %}{% endblock %}">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
       <div class="container-fluid">
-        <a class="navbar-brand" href="{% url 'web:home' %}">Altinet</a>
+        <a
+          class="navbar-brand d-flex align-items-center gap-2"
+          href="{% url 'web:home' %}"
+        >
+          <img
+            src="{% static 'web/img/altinet-logo.png' %}"
+            alt="Altinet logo"
+            width="32"
+            height="32"
+            class="d-inline-block align-text-top"
+          />
+          <span>Altinet</span>
+        </a>
         <button
           class="navbar-toggler"
           type="button"

@@ -148,6 +148,15 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
 
   controls.enableZoom = false;
 
+  if (domElement.style.touchAction !== 'none') {
+    domElement.style.touchAction = 'none';
+  }
+
+  const baseControlState = {
+    enablePan: controls.enablePan,
+    enableRotate: controls.enableRotate,
+  };
+
   const handleWheel = (event) => {
     if (event.defaultPrevented) {
       return;
@@ -188,6 +197,8 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
   };
 
   const handleTouchStart = (event) => {
+    event.stopPropagation();
+
     if (event.touches.length !== 2) {
       return;
     }
@@ -196,12 +207,19 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
       return;
     }
 
+    event.preventDefault();
+
+    controls.enableRotate = false;
+    controls.enablePan = false;
+
     touchState.active = true;
     touchState.initialDistance = distance;
     touchState.initialTargetDistance = targetDistance;
   };
 
   const handleTouchMove = (event) => {
+    event.stopPropagation();
+
     if (!touchState.active) {
       return;
     }
@@ -229,9 +247,13 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
     touchState.active = false;
     touchState.initialDistance = 0;
     touchState.initialTargetDistance = targetDistance;
+    controls.enableRotate = baseControlState.enableRotate;
+    controls.enablePan = baseControlState.enablePan;
   };
 
   const handleTouchEnd = (event) => {
+    event.stopPropagation();
+
     if (event.touches.length === 2) {
       // Another finger lifted but two touches remain; refresh the baseline.
       touchState.initialDistance = distanceBetweenTouches(event.touches);
@@ -244,7 +266,7 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
     }
   };
 
-  domElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+  domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
   domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
   domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
   domElement.addEventListener('touchcancel', handleTouchEnd, { passive: true });

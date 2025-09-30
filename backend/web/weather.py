@@ -51,11 +51,12 @@ class WeatherSnapshot:
     wind_speed_kmh: Optional[float] = None
     wind_direction_deg: Optional[float] = None
     air_quality_index: Optional[int] = None
+    timezone_name: Optional[str] = None
 
     def as_environment_fields(self) -> Dict[str, Any]:
         """Convert the snapshot into the context keys used by the UI."""
 
-        return {
+        fields = {
             "outside_temperature_c": self.temperature_c,
             "outside_humidity": self.humidity_percent,
             "weather_summary": self.summary,
@@ -63,6 +64,11 @@ class WeatherSnapshot:
             "wind_direction_deg": self.wind_direction_deg,
             "air_quality_index": self.air_quality_index,
         }
+
+        if self.timezone_name:
+            fields["location_timezone"] = self.timezone_name
+
+        return fields
 
 
 def _select_hourly_value(hourly: Dict[str, Any], key: str, timestamp: str) -> Optional[Any]:
@@ -146,6 +152,7 @@ def fetch_weather_snapshot(address: str) -> Dict[str, Any]:
             summary=_parse_weather_summary(current_weather.get("weathercode")),
             wind_speed_kmh=current_weather.get("windspeed"),
             wind_direction_deg=current_weather.get("winddirection"),
+            timezone_name=location.get("timezone"),
         )
 
         air_quality_response = httpx.get(

@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .forms import SystemSettingsForm, UserSettingsForm
 from .models import SystemSettings
@@ -34,7 +35,18 @@ def _wind_direction_to_cardinal(degrees: float | None) -> str | None:
 @login_required
 def home(request):
     """Render the main dashboard once the user is authenticated."""
-    local_now = timezone.localtime()
+    system_settings = SystemSettings.load()
+    weather_snapshot = fetch_weather_snapshot(system_settings.home_address)
+
+    base_now = timezone.now()
+    location_timezone = weather_snapshot.get("location_timezone")
+    if location_timezone:
+        try:
+            local_now = base_now.astimezone(ZoneInfo(location_timezone))
+        except ZoneInfoNotFoundError:
+            local_now = timezone.localtime(base_now)
+    else:
+        local_now = timezone.localtime(base_now)
 
     environment_snapshot = {
         "people_present": 0,
@@ -51,8 +63,6 @@ def home(request):
         "energy_usage_kw": None,
     }
 
-    system_settings = SystemSettings.load()
-    weather_snapshot = fetch_weather_snapshot(system_settings.home_address)
     environment_snapshot.update(weather_snapshot)
     environment_snapshot["wind_direction_cardinal"] = _wind_direction_to_cardinal(
         environment_snapshot.get("wind_direction_deg")

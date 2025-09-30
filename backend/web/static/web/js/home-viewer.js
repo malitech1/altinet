@@ -170,6 +170,85 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
 
   domElement.addEventListener('wheel', handleWheel, { passive: false });
 
+  // Track pinch gestures so mobile users can zoom the model.
+  const touchState = {
+    active: false,
+    initialDistance: 0,
+    initialTargetDistance: targetDistance,
+  };
+
+  const distanceBetweenTouches = (touches) => {
+    if (touches.length < 2) {
+      return 0;
+    }
+    const [first, second] = touches;
+    const dx = second.pageX - first.pageX;
+    const dy = second.pageY - first.pageY;
+    return Math.hypot(dx, dy);
+  };
+
+  const handleTouchStart = (event) => {
+    if (event.touches.length !== 2) {
+      return;
+    }
+    const distance = distanceBetweenTouches(event.touches);
+    if (distance <= 0) {
+      return;
+    }
+
+    touchState.active = true;
+    touchState.initialDistance = distance;
+    touchState.initialTargetDistance = targetDistance;
+  };
+
+  const handleTouchMove = (event) => {
+    if (!touchState.active) {
+      return;
+    }
+    if (event.touches.length !== 2) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const distance = distanceBetweenTouches(event.touches);
+    if (distance <= 0 || touchState.initialDistance <= 0) {
+      return;
+    }
+
+    const scale = distance / touchState.initialDistance;
+    const desiredDistance = touchState.initialTargetDistance * Math.max(scale, 1e-4);
+    targetDistance = THREE.MathUtils.clamp(
+      desiredDistance,
+      minDistance,
+      maxDistance,
+    );
+  };
+
+  const endTouchInteraction = () => {
+    touchState.active = false;
+    touchState.initialDistance = 0;
+    touchState.initialTargetDistance = targetDistance;
+  };
+
+  const handleTouchEnd = (event) => {
+    if (event.touches.length === 2) {
+      // Another finger lifted but two touches remain; refresh the baseline.
+      touchState.initialDistance = distanceBetweenTouches(event.touches);
+      touchState.initialTargetDistance = targetDistance;
+      return;
+    }
+
+    if (touchState.active) {
+      endTouchInteraction();
+    }
+  };
+
+  domElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+  domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+  domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+  domElement.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
   controls.addEventListener('end', () => {
     targetDistance = THREE.MathUtils.clamp(
       camera.position.distanceTo(target),

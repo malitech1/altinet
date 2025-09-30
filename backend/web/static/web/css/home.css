@@ -9,14 +9,34 @@
   height: 100% !important;
 }
 
-.viewer-shell {
-  border-style: solid;
+.hero-card {
+  position: relative;
+}
+
+.hero-card .viewer-shell {
+  margin-top: -1.25rem;
+}
+
+@media (min-width: 768px) {
+  .hero-card .viewer-shell {
+    margin-top: -2.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .hero-card .viewer-shell {
+    margin-top: -3rem;
+  }
 }
 
 .viewer-overlay {
   position: absolute;
   inset: 0;
   background: rgba(255, 255, 255, 0.85);
+}
+
+.viewer-shell {
+  border-style: solid;
 }
 
 .metric-card {

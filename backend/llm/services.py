@@ -1,8 +1,7 @@
-"""Services for interacting with an offline LLaMA model."""
+"""Services for interacting with the OpenAI API."""
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Iterable, Optional, Sequence
@@ -11,45 +10,47 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 try:  # pragma: no cover - optional dependency
-    from llama_cpp import Llama  # type: ignore
+    from openai import OpenAI
 except ImportError:  # pragma: no cover - optional dependency
-    Llama = None  # type: ignore
+    OpenAI = None  # type: ignore
 
 
 @dataclass
-class OfflineLlamaConfig:
-    """Configuration for the offline LLaMA model."""
+class OpenAIConfig:
+    """Configuration for the OpenAI chat completion service."""
 
-    model_path: str
-    context_window: int
+    api_key: str
+    model: str
+    max_tokens: int
     temperature: float
     stop_sequences: Sequence[str]
+    base_url: Optional[str] = None
 
 
-class OfflineLlama:
-    """Thin wrapper around :class:`llama_cpp.Llama` with sane defaults."""
+class OpenAIChatService:
+    """Thin wrapper around :class:`openai.OpenAI` with sane defaults."""
 
     def __init__(
         self,
-        config: OfflineLlamaConfig,
-        backend: Optional["Llama"] = None,
+        config: OpenAIConfig,
+        client: Optional[OpenAI] = None,
     ) -> None:
-        if backend is None:
-            if Llama is None:
-                raise ImproperlyConfigured(
-                    "llama-cpp-python is not installed. Add it to requirements to use the offline model.",
-                )
-            if not os.path.exists(config.model_path):
-                raise ImproperlyConfigured(
-                    f"LLaMA model path '{config.model_path}' does not exist."
-                )
-            backend = Llama(
-                model_path=config.model_path,
-                n_ctx=config.context_window,
-                logits_all=False,
-            )
+        if not config.api_key:
+            raise ImproperlyConfigured("OPENAI_API_KEY is not configured")
 
-        self._backend = backend
+        if client is None:
+            if OpenAI is None:
+                raise ImproperlyConfigured(
+                    "openai is not installed. Add it to requirements to use the hosted model.",
+                )
+            init_kwargs = {"api_key": config.api_key}
+            if config.base_url:
+                init_kwargs["base_url"] = config.base_url
+            client = OpenAI(**init_kwargs)
+
+        self._client = client
+        self._model = config.model
+        self._max_tokens = config.max_tokens
         self._temperature = config.temperature
         self._stop_sequences = list(config.stop_sequences)
 
@@ -63,43 +64,44 @@ class OfflineLlama:
     ) -> str:
         """Generate a completion for ``prompt`` and return the raw text."""
 
-        kwargs = {
-            "max_tokens": max_tokens or settings.LLAMA_MAX_TOKENS,
-            "temperature": temperature if temperature is not None else self._temperature,
-        }
         stops = list(stop_sequences) if stop_sequences is not None else self._stop_sequences
-        if stops:
-            kwargs["stop"] = stops
 
-        completion = self._backend(
-            prompt,
-            **kwargs,
+        response = self._client.chat.completions.create(
+            model=self._model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens or self._max_tokens,
+            temperature=self._temperature if temperature is None else temperature,
+            stop=stops or None,
         )
-        choice = completion["choices"][0]
-        text = choice.get("text") or choice.get("message", {}).get("content", "")
-        return text.strip()
+        choice = response.choices[0]
+        message = getattr(choice, "message", None)
+        if message is None:
+            return ""
+        content = getattr(message, "content", "")
+        return (content or "").strip()
 
 
-def _build_config() -> OfflineLlamaConfig:
-    if not settings.LLAMA_MODEL_PATH:
-        raise ImproperlyConfigured("LLAMA_MODEL_PATH is not configured")
+def _build_config() -> OpenAIConfig:
+    base_url = settings.OPENAI_BASE_URL or None
 
-    return OfflineLlamaConfig(
-        model_path=settings.LLAMA_MODEL_PATH,
-        context_window=settings.LLAMA_CONTEXT_WINDOW,
-        temperature=settings.LLAMA_TEMPERATURE,
-        stop_sequences=settings.LLAMA_STOP_SEQUENCES,
+    return OpenAIConfig(
+        api_key=settings.OPENAI_API_KEY,
+        model=settings.OPENAI_MODEL,
+        max_tokens=settings.OPENAI_MAX_TOKENS,
+        temperature=settings.OPENAI_TEMPERATURE,
+        stop_sequences=settings.OPENAI_STOP_SEQUENCES,
+        base_url=base_url,
     )
 
 
 @lru_cache(maxsize=1)
-def get_default_llama() -> OfflineLlama:
-    """Return a shared :class:`OfflineLlama` instance for the service."""
+def get_default_openai_client() -> OpenAIChatService:
+    """Return a shared :class:`OpenAIChatService` instance for the service."""
 
-    return OfflineLlama(_build_config())
+    return OpenAIChatService(_build_config())
 
 
-def reset_llama_cache() -> None:
-    """Reset the cached LLaMA instance (useful for tests)."""
+def reset_openai_cache() -> None:
+    """Reset the cached OpenAI client instance (useful for tests)."""
 
-    get_default_llama.cache_clear()
+    get_default_openai_client.cache_clear()

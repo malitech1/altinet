@@ -182,24 +182,18 @@ FERNET_DERIVED_KEY = derive_fernet_key(FERNET_SECRET)
 ROS_BRIDGE_BASE_URL = os.environ.get("ROS_BRIDGE_URL", "http://localhost:8001")
 ROS_BRIDGE_WS_URL = os.environ.get("ROS_BRIDGE_WS_URL", "ws://localhost:8001")
 
-# Offline LLaMA configuration
-_default_llama_model = BASE_DIR.parent / "assets" / "models" / "tinyllama-1.1b-chat-v1.0.Q2_K.gguf"
-_configured_llama_model = os.environ.get("ALTINET_LLAMA_MODEL_PATH")
-if _configured_llama_model:
-    LLAMA_MODEL_PATH = _configured_llama_model
-elif _default_llama_model.exists():
-    LLAMA_MODEL_PATH = str(_default_llama_model)
-else:
-    LLAMA_MODEL_PATH = ""
-LLAMA_CONTEXT_WINDOW = int(os.environ.get("ALTINET_LLAMA_CONTEXT", "2048"))
-LLAMA_MAX_TOKENS = int(os.environ.get("ALTINET_LLAMA_MAX_TOKENS", "256"))
-LLAMA_TEMPERATURE = float(os.environ.get("ALTINET_LLAMA_TEMPERATURE", "0.7"))
-_llama_stop_sequences = os.environ.get("ALTINET_LLAMA_STOP_SEQUENCES", "")
-if _llama_stop_sequences:
-    LLAMA_STOP_SEQUENCES = tuple(
+# OpenAI configuration
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("ALTINET_OPENAI_MODEL", "gpt-3.5-turbo")
+OPENAI_MAX_TOKENS = int(os.environ.get("ALTINET_OPENAI_MAX_TOKENS", "256"))
+OPENAI_TEMPERATURE = float(os.environ.get("ALTINET_OPENAI_TEMPERATURE", "0.7"))
+OPENAI_BASE_URL = os.environ.get("ALTINET_OPENAI_BASE_URL", "")
+_openai_stop_sequences = os.environ.get("ALTINET_OPENAI_STOP_SEQUENCES", "")
+if _openai_stop_sequences:
+    OPENAI_STOP_SEQUENCES = tuple(
         sequence.strip()
-        for sequence in _llama_stop_sequences.split("|")
+        for sequence in _openai_stop_sequences.split("|")
         if sequence.strip()
     )
 else:
-    LLAMA_STOP_SEQUENCES: tuple[str, ...] = tuple()
+    OPENAI_STOP_SEQUENCES: tuple[str, ...] = tuple()

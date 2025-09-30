@@ -1,4 +1,4 @@
-"""API views for the offline LLaMA model."""
+"""API views for the OpenAI-backed LLM."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import PromptRequestSerializer, PromptResponseSerializer
-from .services import get_default_llama
+from .services import get_default_openai_client
 
 
-class LlamaPromptView(APIView):
+class PromptView(APIView):
     """Accept a prompt and return the generated response."""
 
     permission_classes = [permissions.AllowAny]
@@ -22,7 +22,7 @@ class LlamaPromptView(APIView):
         serializer.is_valid(raise_exception=True)
 
         try:
-            llama = self._get_llama()
+            client = self._get_client()
         except ImproperlyConfigured as exc:
             return Response(
                 {"detail": str(exc)},
@@ -32,7 +32,7 @@ class LlamaPromptView(APIView):
         max_tokens = serializer.validated_data.get("max_tokens")
         temperature = serializer.validated_data.get("temperature")
 
-        response_text = llama.generate(
+        response_text = client.generate(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
@@ -41,8 +41,8 @@ class LlamaPromptView(APIView):
         response_serializer = PromptResponseSerializer({"response": response_text})
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    def _get_llama(self):
-        return get_default_llama()
+    def _get_client(self):
+        return get_default_openai_client()
 
 
 class HealthView(APIView):
@@ -52,7 +52,7 @@ class HealthView(APIView):
 
     def get(self, request: Request) -> Response:
         try:
-            get_default_llama()
+            get_default_openai_client()
         except ImproperlyConfigured as exc:
             return Response(
                 {"status": "error", "detail": str(exc)},

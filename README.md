@@ -92,23 +92,23 @@ Django backend for dashboards and historical analysis.
 ## Query the built-in LLM assistant
 
 Altinet exposes a lightweight `/api/llm/` namespace in Django that wraps the
-offline LLaMA model configured through environment variables. To enable the
-assistant locally:
+OpenAI Chat Completions API. To enable the assistant locally:
 
-1. Point the backend at your `llama.cpp` compatible weights and optional
-   generation settings before starting Django. A copy of
-   `tinyllama-1.1b-chat-v1.0.Q2_K.gguf` placed in
-   `assets/models/` is detected automatically, otherwise configure the path
-   manually:
+1. Provide the backend with an API key and optional generation overrides before
+   starting Django:
 
    ```bash
-   export ALTINET_LLAMA_MODEL_PATH=/absolute/path/to/ggml-model.bin  # optional when using the default TinyLlama weight
-   export ALTINET_LLAMA_CONTEXT=2048            # optional
-   export ALTINET_LLAMA_MAX_TOKENS=256          # optional
-   export ALTINET_LLAMA_TEMPERATURE=0.7         # optional
+   export OPENAI_API_KEY=sk-your-key-here          # required
+   export ALTINET_OPENAI_MODEL=gpt-3.5-turbo       # optional
+   export ALTINET_OPENAI_MAX_TOKENS=256            # optional
+   export ALTINET_OPENAI_TEMPERATURE=0.7           # optional
+   export ALTINET_OPENAI_STOP_SEQUENCES="###|END"  # optional (pipe-separated)
    ```
 
-2. Verify the model loads correctly by calling the health probe:
+   You can also point the service at an alternative endpoint (for example a
+   self-hosted OpenAI compatible gateway) via `ALTINET_OPENAI_BASE_URL`.
+
+2. Verify the credentials work by calling the health probe:
 
    ```bash
    curl http://127.0.0.1:8000/api/llm/health/

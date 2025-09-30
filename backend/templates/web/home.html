@@ -129,8 +129,40 @@
     </div>
   </div>
 </div>
+<div class="row mt-4">
+  <div class="col-12">
+    <section class="assistant-card bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-3 p-lg-4">
+      <header class="mb-3">
+        <p class="text-uppercase text-primary fw-semibold small mb-1">Assistant</p>
+        <h2 class="h4 fw-semibold mb-0">Ask Altinet anything</h2>
+      </header>
+      <div class="d-flex flex-column gap-4">
+        <form data-llm-form class="d-flex flex-column gap-3">
+          <div>
+            <label class="form-label fw-semibold" for="assistant-prompt">Prompt</label>
+            <textarea
+              id="assistant-prompt"
+              class="form-control"
+              rows="3"
+              placeholder="Ask about your environment, devices, or anything else."
+              data-llm-input
+            ></textarea>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-3">
+            <button type="submit" class="btn btn-primary" data-llm-submit>Send to assistant</button>
+            <p class="small text-muted mb-0" data-llm-status>Waiting for your question.</p>
+          </div>
+        </form>
+        <section class="assistant-response" aria-live="polite" data-llm-response>
+          The assistant's response will appear here.
+        </section>
+      </div>
+    </section>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script type="module" src="{% static 'web/js/home-viewer.js' %}"></script>
+<script src="{% static 'web/js/home-llm.js' %}" defer></script>
 {% endblock %}

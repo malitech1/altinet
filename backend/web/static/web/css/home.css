@@ -61,6 +61,25 @@
   font-size: 0.95rem;
 }
 
+.assistant-card {
+  min-height: 100%;
+}
+
+.assistant-card textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+.assistant-response {
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  color: var(--bs-body-color);
+  white-space: pre-wrap;
+  min-height: 5rem;
+}
+
 @media (min-width: 1200px) {
   .home-layout {
     --bs-gutter-x: 1.75rem;

@@ -255,6 +255,14 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
     );
   };
 
+  const endTouchInteraction = () => {
+    touchState.active = false;
+    touchState.initialDistance = 0;
+    touchState.initialTargetDistance = targetDistance;
+    controls.enableRotate = baseControlState.enableRotate;
+    controls.enablePan = baseControlState.enablePan;
+  };
+
   const handleTouchEnd = (event) => {
     event.stopPropagation();
 
@@ -403,6 +411,10 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
   } else {
     registerLegacyTouchHandlers();
   }
+  domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+  domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+  domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+  domElement.addEventListener('touchcancel', handleTouchEnd, { passive: true });
 
   controls.addEventListener('end', () => {
     targetDistance = THREE.MathUtils.clamp(

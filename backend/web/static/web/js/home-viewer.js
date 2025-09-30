@@ -110,6 +110,12 @@ function initialiseViewer(containerEl, objUrl) {
 }
 
 function prepareModel(model, scene, controls) {
+  // Rotate the model so it lies flat on the ground disk instead of standing
+  // upright. The OBJ geometry is authored with Z as the up axis, whereas the
+  // Three.js scene uses Y for the vertical axis. Rotating it by -90° around X
+  // brings the floor plane into alignment with the viewer ground plane.
+  model.rotation.x = -Math.PI / 2;
+
   const target = new THREE.Vector3();
   const box = new THREE.Box3().setFromObject(model);
   box.getCenter(target);

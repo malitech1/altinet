@@ -12,7 +12,10 @@
 {% block content %}
 <div class="row g-4 align-items-stretch home-layout">
   <div class="col-12 col-xl-4 col-xxl-3">
-    <section class="environment-card bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm h-100 p-3 p-lg-4">
+    <section
+      class="environment-card bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm h-100 p-3 p-lg-4"
+      data-weather-endpoint="{{ weather_endpoint }}"
+    >
       <div class="d-flex flex-column h-100">
         <header class="mb-4">
           <p class="text-uppercase text-primary fw-semibold small mb-1">Live environment</p>
@@ -50,7 +53,11 @@
           <div class="col">
             <article class="environment-metric h-100">
               <h2 class="h6 text-uppercase text-muted mb-2">Outside temperature</h2>
-              <p class="metric-value mb-0">
+              <p
+                class="metric-value mb-0"
+                data-weather-field="outside_temperature_c"
+                data-weather-format="temperature"
+              >
                 {% if environment_snapshot.outside_temperature_c is not None %}
                   {{ environment_snapshot.outside_temperature_c|floatformat:1 }}°C
                 {% else %}
@@ -75,27 +82,83 @@
             <article class="environment-metric h-100">
               <h2 class="h6 text-uppercase text-muted mb-2">Wind</h2>
               <p class="metric-value mb-0">
-                {% if environment_snapshot.wind_speed_kmh is not None %}
-                  {{ environment_snapshot.wind_speed_kmh|floatformat:1 }} km/h
-                  {% if environment_snapshot.wind_direction_cardinal %}
-                    <span class="text-muted">({{ environment_snapshot.wind_direction_cardinal }})</span>
+                <span
+                  data-weather-field="wind_speed_kmh"
+                  data-weather-format="wind-speed"
+                >
+                  {% if environment_snapshot.wind_speed_kmh is not None %}
+                    {{ environment_snapshot.wind_speed_kmh|floatformat:1 }} km/h
+                  {% else %}
+                    —
                   {% endif %}
-                {% else %}
-                  —
-                {% endif %}
+                </span>
+                <span
+                  class="text-muted"
+                  data-weather-field="wind_direction_cardinal"
+                  data-weather-format="wind-direction"
+                >
+                  {% if environment_snapshot.wind_speed_kmh is not None and environment_snapshot.wind_direction_cardinal %}
+                    ({{ environment_snapshot.wind_direction_cardinal }})
+                  {% endif %}
+                </span>
               </p>
             </article>
           </div>
           <div class="col">
             <article class="environment-metric h-100">
               <h2 class="h6 text-uppercase text-muted mb-2">Local weather</h2>
-              <p class="metric-value mb-0">{{ environment_snapshot.weather_summary|default:"—" }}</p>
+              <p
+                class="metric-value mb-0"
+                data-weather-field="weather_summary"
+              >
+                {{ environment_snapshot.weather_summary|default:"—" }}
+              </p>
             </article>
           </div>
         </div>
-        <div class="mt-auto pt-4">
-          <p class="text-muted small mb-0">
-            Data updates automatically as new sensor readings arrive.
+        <div class="mt-4">
+          <h2 class="h6 text-uppercase text-muted mb-3">Detailed outdoor weather</h2>
+          <div class="table-responsive">
+            <table class="table table-sm mb-2 environment-weather-table">
+              <tbody>
+                <tr>
+                  <th scope="row" class="text-nowrap">Temperature</th>
+                  <td
+                    data-weather-field="outside_temperature_c"
+                    data-weather-format="temperature"
+                  >
+                    —
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-nowrap">Humidity</th>
+                  <td data-weather-field="outside_humidity" data-weather-format="percentage">—</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-nowrap">Weather</th>
+                  <td data-weather-field="weather_summary">—</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-nowrap">Wind speed</th>
+                  <td data-weather-field="wind_speed_kmh" data-weather-format="wind-speed">—</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-nowrap">Wind direction</th>
+                  <td data-weather-field="wind_direction_cardinal" data-weather-format="text">—</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-nowrap">Wind bearing</th>
+                  <td data-weather-field="wind_direction_deg" data-weather-format="degrees">—</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-nowrap">Air quality</th>
+                  <td data-weather-field="air_quality_index" data-weather-format="aqi">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-muted small mb-0" data-weather-status>
+            Gathering latest readings for Macleay Island&hellip;
           </p>
         </div>
       </div>
@@ -171,4 +234,5 @@
 <script src="{% static 'web/js/home-llm.js' %}" defer></script>
 
 <script type="module" src="{% static 'web/js/home-local-time.js' %}"></script>
+<script type="module" src="{% static 'web/js/home-weather.js' %}"></script>
 {% endblock %}

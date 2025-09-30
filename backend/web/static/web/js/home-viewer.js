@@ -40,6 +40,59 @@ function initialiseViewer(containerEl, objUrl) {
   controls.dampingFactor = 0.05;
   controls.screenSpacePanning = false;
   controls.maxPolarAngle = Math.PI / 2.1;
+  controls.enableZoom = false;
+
+  const zoomSlider = containerEl.parentElement?.querySelector('[data-zoom-control]');
+  const sliderMinDistance = zoomSlider ? Number.parseFloat(zoomSlider.min) || 2 : 2;
+  const sliderMaxDistance = zoomSlider ? Number.parseFloat(zoomSlider.max) || 12 : 12;
+  const zoomDirection = new THREE.Vector3();
+  const zoomPosition = new THREE.Vector3();
+  let sliderInteracting = false;
+
+  const clampDistance = (value) => {
+    if (!Number.isFinite(value)) {
+      return camera.position.distanceTo(controls.target);
+    }
+    return Math.min(sliderMaxDistance, Math.max(sliderMinDistance, value));
+  };
+
+  const syncSliderToCamera = () => {
+    if (!zoomSlider) {
+      return;
+    }
+    const distance = camera.position.distanceTo(controls.target);
+    if (!Number.isFinite(distance)) {
+      return;
+    }
+    zoomSlider.value = clampDistance(distance).toString();
+  };
+
+  if (zoomSlider) {
+    syncSliderToCamera();
+
+    zoomSlider.addEventListener('input', (event) => {
+      const rawValue = Number.parseFloat(event.target.value);
+      const desiredDistance = clampDistance(rawValue);
+      zoomSlider.value = desiredDistance.toString();
+
+      zoomDirection.subVectors(camera.position, controls.target).normalize();
+      zoomPosition.copy(controls.target).addScaledVector(zoomDirection, desiredDistance);
+      camera.position.copy(zoomPosition);
+
+      sliderInteracting = true;
+      controls.update();
+      requestAnimationFrame(() => {
+        sliderInteracting = false;
+      });
+    });
+
+    controls.addEventListener('change', () => {
+      if (sliderInteracting) {
+        return;
+      }
+      syncSliderToCamera();
+    });
+  }
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);

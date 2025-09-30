@@ -26,7 +26,7 @@ def test_home_renders_for_authenticated_user(client: Client, monkeypatch: pytest
     response = client.get(reverse("web:home"))
 
     assert response.status_code == 200
-    assert b"Welcome" in response.content
+    assert b"home-viewer" in response.content
 
 
 def test_settings_requires_authentication(client: Client) -> None:

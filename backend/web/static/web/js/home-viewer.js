@@ -65,7 +65,7 @@ function initialiseViewer(containerEl, objUrl) {
 
   loadObjModel(objUrl, { wallMaterial, roofMaterial })
     .then((object) => {
-      prepareModel(object, scene, controls);
+      prepareModel(object, scene, controls, camera);
       animate();
     })
     .catch((error) => {
@@ -95,7 +95,7 @@ function initialiseViewer(containerEl, objUrl) {
   });
 }
 
-function prepareModel(model, scene, controls) {
+function prepareModel(model, scene, controls, camera) {
   model.rotation.x = -Math.PI / 2;
 
   const target = new THREE.Vector3();
@@ -109,7 +109,30 @@ function prepareModel(model, scene, controls) {
 
   scene.add(model);
 
-  controls.target.set(0, size.y * 0.45, 0);
+  const focusHeight = size.y * 0.45;
+  controls.target.set(0, focusHeight, 0);
+
+  if (camera) {
+    const maxDimension = Math.max(size.x, size.y, size.z);
+    const fitOffset = 1.2;
+    const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
+    const distanceForHeight = maxDimension / (2 * Math.tan(halfFov));
+    const distanceForWidth = distanceForHeight / camera.aspect;
+    const distance = Math.max(distanceForHeight, distanceForWidth) * fitOffset;
+
+    const viewDirection = new THREE.Vector3(3, 2, 3).normalize();
+    const cameraPosition = new THREE.Vector3();
+    cameraPosition
+      .copy(controls.target)
+      .addScaledVector(viewDirection, distance)
+      .setY(Math.max(focusHeight * 1.2, distance * 0.4));
+
+    camera.position.copy(cameraPosition);
+    camera.near = Math.max(0.1, distance / 50);
+    camera.far = Math.max(camera.far, distance * 50);
+    camera.updateProjectionMatrix();
+  }
+
   controls.update();
 }
 

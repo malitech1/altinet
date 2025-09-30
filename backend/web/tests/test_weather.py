@@ -22,10 +22,15 @@ class MockResponse:
             )
 
 
-def _build_sample_html(payload: dict) -> str:
+def _build_sample_html(payload: dict, *, id_with_whitespace: bool = False) -> str:
+    if id_with_whitespace:
+        id_attribute = 'id = "__NEXT_DATA__"'
+    else:
+        id_attribute = 'id="__NEXT_DATA__"'
+
     return (
         "<html><head></head><body>"
-        f"<script crossorigin=\"anonymous\" id=\"__NEXT_DATA__\" type=\"application/json\">{json.dumps(payload)}</script>"
+        f"<script crossorigin=\"anonymous\" {id_attribute} type=\"application/json\">{json.dumps(payload)}</script>"
         "</body></html>"
     )
 
@@ -73,6 +78,44 @@ def test_fetch_weather_snapshot_parses_scraped_payload(monkeypatch: pytest.Monke
         "air_quality_index": 42,
         "location_timezone": "Australia/Brisbane",
     }
+
+
+def test_fetch_weather_snapshot_handles_whitespace_around_id_equals(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {
+        "props": {
+            "pageProps": {
+                "dataStore": {
+                    "wxObservation": {
+                        "current": {
+                            "temperature": 19.2,
+                            "relativeHumidity": 70,
+                            "windSpeed": 12.4,
+                            "windDirection": 200,
+                            "wxPhraseShort": "Cloudy",
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    html = _build_sample_html(payload, id_with_whitespace=True)
+
+    def fake_get(url: str, headers: dict | None = None, timeout: float | None = None):
+        assert "weather.com" in url
+        return MockResponse(text=html, url=url)
+
+    monkeypatch.setattr("web.weather.httpx.get", fake_get)
+
+    snapshot = fetch_weather_snapshot("Anywhere")
+
+    assert snapshot["outside_temperature_c"] == pytest.approx(19.2)
+    assert snapshot["outside_humidity"] == 70
+    assert snapshot["weather_summary"] == "Cloudy"
+    assert snapshot["wind_speed_kmh"] == pytest.approx(12.4)
+    assert snapshot["wind_direction_deg"] == pytest.approx(200.0)
 
 
 def test_fetch_weather_snapshot_returns_empty_when_no_data(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -25,7 +25,7 @@ class MockResponse:
 def _build_sample_html(payload: dict) -> str:
     return (
         "<html><head></head><body>"
-        f"<script id=\"__NEXT_DATA__\" type=\"application/json\">{json.dumps(payload)}</script>"
+        f"<script crossorigin=\"anonymous\" id=\"__NEXT_DATA__\" type=\"application/json\">{json.dumps(payload)}</script>"
         "</body></html>"
     )
 

@@ -52,19 +52,15 @@
                 Home
               </a>
             </li>
-            {% if user.is_authenticated %}
-            <li class="nav-item">
-              <a
-                class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}"
-                href="{% url 'web:settings' %}"
-              >
-                Settings
-              </a>
-            </li>
-            {% endif %}
           </ul>
           <div class="d-flex align-items-center gap-2">
             {% if user.is_authenticated %}
+            <a
+              class="btn btn-outline-light {% if request.resolver_match.url_name == 'settings' %}active{% endif %}"
+              href="{% url 'web:settings' %}"
+            >
+              Settings
+            </a>
             <a
               class="btn btn-outline-light {% if request.resolver_match.url_name == 'builder' %}active{% endif %}"
               href="{% url 'web:builder' %}"

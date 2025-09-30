@@ -20,7 +20,7 @@ function initialiseViewer(containerEl, objUrl) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf4f6fb);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   const initialWidth = containerEl.clientWidth || containerEl.offsetWidth || 640;
   const initialHeight = containerEl.clientHeight || containerEl.offsetHeight || 480;
@@ -40,7 +40,6 @@ function initialiseViewer(containerEl, objUrl) {
   controls.dampingFactor = 0.05;
   controls.screenSpacePanning = false;
   controls.maxPolarAngle = Math.PI / 2.1;
-  controls.enableZoom = false;
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -50,11 +49,17 @@ function initialiseViewer(containerEl, objUrl) {
 
   scene.add(ambientLight, keyLight, fillLight);
 
+  const groundGeometry = new THREE.CircleGeometry(6, 64);
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xdfe6f3 });
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.001;
+  scene.add(ground);
+
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0xd4dae4,
     roughness: 0.6,
     metalness: 0.05,
-    opacity: 1,
   });
 
   const roofMaterial = new THREE.MeshStandardMaterial({
@@ -65,7 +70,7 @@ function initialiseViewer(containerEl, objUrl) {
 
   loadObjModel(objUrl, { wallMaterial, roofMaterial })
     .then((object) => {
-      prepareModel(object, scene, controls, camera);
+      prepareModel(object, scene, controls);
       animate();
     })
     .catch((error) => {
@@ -95,9 +100,7 @@ function initialiseViewer(containerEl, objUrl) {
   });
 }
 
-function prepareModel(model, scene, controls, camera) {
-  model.rotation.x = -Math.PI / 2;
-
+function prepareModel(model, scene, controls) {
   const target = new THREE.Vector3();
   const box = new THREE.Box3().setFromObject(model);
   box.getCenter(target);
@@ -109,30 +112,7 @@ function prepareModel(model, scene, controls, camera) {
 
   scene.add(model);
 
-  const focusHeight = size.y * 0.45;
-  controls.target.set(0, focusHeight, 0);
-
-  if (camera) {
-    const maxDimension = Math.max(size.x, size.y, size.z);
-    const fitOffset = 1.2;
-    const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
-    const distanceForHeight = maxDimension / (2 * Math.tan(halfFov));
-    const distanceForWidth = distanceForHeight / camera.aspect;
-    const distance = Math.max(distanceForHeight, distanceForWidth) * fitOffset;
-
-    const viewDirection = new THREE.Vector3(3, 2, 3).normalize();
-    const cameraPosition = new THREE.Vector3();
-    cameraPosition
-      .copy(controls.target)
-      .addScaledVector(viewDirection, distance)
-      .setY(Math.max(focusHeight * 1.2, distance * 0.4));
-
-    camera.position.copy(cameraPosition);
-    camera.near = Math.max(0.1, distance / 50);
-    camera.far = Math.max(camera.far, distance * 50);
-    camera.updateProjectionMatrix();
-  }
-
+  controls.target.set(0, size.y * 0.45, 0);
   controls.update();
 }
 
@@ -251,11 +231,6 @@ function buildMeshGroup(groups, materials) {
     mesh.name = name;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-
-    if (name.toLowerCase().includes('wall')) {
-      mesh.rotation.x = -Math.PI / 2;
-    }
-
     root.add(mesh);
   }
 

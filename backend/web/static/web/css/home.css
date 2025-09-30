@@ -24,38 +24,3 @@
   inset: 0;
   background: rgba(255, 255, 255, 0.85);
 }
-
-.viewer-zoom-control {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: min(100%, 22rem);
-  padding: 0.75rem 1rem;
-  border: 1px solid rgba(108, 117, 125, 0.35);
-  border-radius: 1rem;
-  background: rgba(248, 249, 252, 0.95);
-  box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.08);
-}
-
-.viewer-zoom-control input[type='range'] {
-  width: 100%;
-  accent-color: #0d6efd;
-}
-
-.metric-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  background-color: #fdfdff;
-}
-
-.metric-card:hover,
-.metric-card:focus-within {
-  transform: translateY(-2px);
-  box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.08);
-}
-
-.status-indicator {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 999px;
-  box-shadow: 0 0 0 1px rgba(25, 135, 84, 0.4);
-}

@@ -133,40 +133,6 @@ assistant locally:
    The home dashboard ships with a basic form that posts to the same endpoint
    (`/` → *Assistant* card) so operators can experiment without leaving the UI.
 
-
-### Query the assistant from ROS 2
-
-The ROS 2 workspace also exposes the assistant through a synchronous service so
-nodes can obtain completions without touching HTTP clients directly. After
-building and sourcing `ros2_ws`, launch the bridge that proxies calls to the
-Django backend:
-
-```bash
-ros2 run altinet llm_service_node \
-  --ros-args \
-  -p api_base:=http://127.0.0.1:8000/api/llm \
-  -p default_max_tokens:=256 \
-  -p default_temperature:=0.7
-```
-
-Once the node is running you should see `/altinet/llm/prompt` listed under
-`ros2 service list`. Invoke it from any terminal to fetch a response:
-
-```bash
-ros2 service call /altinet/llm/prompt altinet_interfaces/srv/PromptLLM "{
-  prompt: 'Summarise the latest living_room activity feed',
-  max_tokens: 128,
-  temperature: 0.6
-}"
-```
-
-The service returns the generated `response` text together with bookkeeping
-fields (`model`, `prompt_tokens`, `completion_tokens`). Leave `max_tokens` or
-`temperature` unset to fall back to the defaults configured on the node. When
-invoking the service from your own node import the generated interface and call
-it through a `Client<PromptLLM>` just like any other ROS 2 service.
-
-
 ### Builder → Blender → Dashboard workflow
 
 The browser-based builder now supports multi-level plans, local persistence and

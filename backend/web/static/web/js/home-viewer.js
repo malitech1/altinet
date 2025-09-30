@@ -41,6 +41,8 @@ function initialiseViewer(containerEl, objUrl) {
   controls.screenSpacePanning = false;
   controls.maxPolarAngle = Math.PI / 2.1;
 
+  let updateSmoothZoom = () => {};
+
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
   keyLight.position.set(5, 10, 7);
@@ -70,7 +72,13 @@ function initialiseViewer(containerEl, objUrl) {
 
   loadObjModel(objUrl, { wallMaterial, roofMaterial })
     .then((object) => {
-      prepareModel(object, scene, controls);
+      const distances = prepareModel(object, scene, controls);
+      updateSmoothZoom = setupSmoothScrollZoom(
+        controls,
+        camera,
+        renderer.domElement,
+        distances,
+      );
       animate();
     })
     .catch((error) => {
@@ -87,6 +95,7 @@ function initialiseViewer(containerEl, objUrl) {
 
   function animate() {
     requestAnimationFrame(animate);
+    updateSmoothZoom();
     controls.update();
     renderer.render(scene, camera);
   }
@@ -120,6 +129,71 @@ function prepareModel(model, scene, controls) {
   controls.minDistance = minDistance;
   controls.maxDistance = maxDistance;
   controls.update();
+
+  return { minDistance, maxDistance };
+}
+
+function setupSmoothScrollZoom(controls, camera, domElement, distances) {
+  const target = controls.target;
+  const direction = new THREE.Vector3();
+  const newPosition = new THREE.Vector3();
+
+  const minDistance = distances?.minDistance ?? controls.minDistance ?? 0.5;
+  const maxDistance = distances?.maxDistance ?? controls.maxDistance ?? 50;
+
+  let targetDistance = THREE.MathUtils.clamp(
+    camera.position.distanceTo(target),
+    minDistance,
+    maxDistance,
+  );
+
+  controls.enableZoom = false;
+
+  const handleWheel = (event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+    event.preventDefault();
+
+    const delta = event.deltaY;
+    if (delta === 0) {
+      return;
+    }
+
+    const magnitude = Math.min(1, Math.abs(delta) / 120);
+    const factor = 1 + Math.sign(delta) * magnitude * 0.25;
+    targetDistance = THREE.MathUtils.clamp(
+      targetDistance * factor,
+      minDistance,
+      maxDistance,
+    );
+  };
+
+  domElement.addEventListener('wheel', handleWheel, { passive: false });
+
+  controls.addEventListener('end', () => {
+    targetDistance = THREE.MathUtils.clamp(
+      camera.position.distanceTo(target),
+      minDistance,
+      maxDistance,
+    );
+  });
+
+  return () => {
+    const currentDistance = camera.position.distanceTo(target);
+    const difference = targetDistance - currentDistance;
+
+    if (Math.abs(difference) < 1e-4) {
+      return;
+    }
+
+    const smoothStep = difference * 0.12;
+    const nextDistance = currentDistance + smoothStep;
+
+    direction.subVectors(camera.position, target).normalize();
+    newPosition.copy(direction).multiplyScalar(nextDistance).add(target);
+    camera.position.copy(newPosition);
+  };
 }
 
 async function loadObjModel(url, materials) {

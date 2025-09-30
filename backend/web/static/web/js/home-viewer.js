@@ -113,8 +113,27 @@ function prepareModel(model, scene, controls) {
   scene.add(model);
 
   controls.target.set(0, size.y * 0.45, 0);
-  controls.minDistance = Math.max(radius * 0.6, 0.5);
-  controls.maxDistance = Math.max(radius * 6, controls.minDistance * 1.5);
+  const camera = controls.object;
+  const currentDistance = camera.position.distanceTo(controls.target);
+
+  const margin = Math.max(radius * 0.05, 0.25);
+  let minDistance = Math.max(radius + margin, 0.5);
+  let maxDistance = Math.max(radius * 4 + margin, minDistance + margin);
+
+  if (currentDistance > maxDistance) {
+    maxDistance = currentDistance + margin;
+  }
+
+  if (currentDistance < minDistance) {
+    const direction = new THREE.Vector3()
+      .subVectors(camera.position, controls.target)
+      .normalize();
+    const safeDistance = minDistance;
+    camera.position.copy(direction.multiplyScalar(safeDistance).add(controls.target));
+  }
+
+  controls.minDistance = minDistance;
+  controls.maxDistance = Math.max(maxDistance, minDistance + margin);
   controls.update();
 }
 

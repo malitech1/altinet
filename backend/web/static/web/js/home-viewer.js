@@ -112,19 +112,23 @@ function prepareModel(model, scene, controls) {
   const target = new THREE.Vector3();
   const box = new THREE.Box3().setFromObject(model);
   box.getCenter(target);
+
+  model.position.sub(target);
+  model.rotation.x = -Math.PI / 2;
+
+  const rotatedBox = new THREE.Box3().setFromObject(model);
   const size = new THREE.Vector3();
-  box.getSize(size);
+  rotatedBox.getSize(size);
 
   const diagonal = size.length();
   const minDistance = Math.max(diagonal * 0.35 || 0, 0.75);
   const maxDistance = Math.max(diagonal * 4 || 0, minDistance * 2);
 
-  model.position.sub(target);
-  model.position.y -= box.min.y;
+  model.position.y -= rotatedBox.min.y;
 
   scene.add(model);
 
-  controls.target.set(0, size.y * 0.45, 0);
+  controls.target.set(0, size.y * 0.5, 0);
   controls.minDistance = minDistance;
   controls.maxDistance = maxDistance;
   controls.update();

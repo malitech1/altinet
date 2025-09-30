@@ -150,6 +150,39 @@ static assets without extra configuration. When deploying to production
 environments you should explicitly disable debug behaviour by setting
 `DJANGO_DEBUG=false` in the deployment's environment configuration.
 
+## Environment variables
+
+The backend and ROS bridge honour the following environment variables for
+configuration and integrations:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DJANGO_SECRET_KEY` | Randomly generated | Overrides the Django secret key used for session signing and CSRF protection. |
+| `DJANGO_DEBUG` | `true` | Enables Django debug mode, useful locally but should be disabled in production. |
+| `DJANGO_ALLOWED_HOSTS` | `*` | Comma-separated hostnames that Django will serve. |
+| `POSTGRES_DB` | — | When set, enables the PostgreSQL database configuration and names the target database. |
+| `POSTGRES_USER` | `postgres` | Username used for the PostgreSQL connection. |
+| `POSTGRES_PASSWORD` | `postgres` | Password used for the PostgreSQL connection. |
+| `POSTGRES_HOST` | `localhost` | Hostname of the PostgreSQL instance. |
+| `POSTGRES_PORT` | `5432` | TCP port of the PostgreSQL instance. |
+| `FERNET_SECRET_KEY` | `DJANGO_SECRET_KEY` | Seed for deriving the key used to encrypt sensitive data. |
+| `ALTINET_HOME_MODEL` | `web/models/home.obj` | Path (relative to `backend/web/static/`) of the OBJ file rendered on the dashboard. |
+| `ALTINET_FLOORPLAN_PLAN` | `assets/floorplans/latest.json` | Filesystem path where generated floorplan JSON exports are stored. |
+| `ALTINET_FLOORPLAN_OBJ` | `backend/web/static/web/models/home.obj` | Filesystem path for exporting the OBJ model produced by the floorplan builder. |
+| `ALTINET_FLOORPLAN_WALL_HEIGHT` | `3.0` | Default wall height (metres) when generating geometry. |
+| `ALTINET_FLOORPLAN_WALL_THICKNESS` | `0.2` | Default wall thickness (metres) when generating geometry. |
+| `ALTINET_FLOORPLAN_STOREY_HEIGHT` | `3.2` | Default storey height (metres) used during OBJ generation. |
+| `ALTINET_FLOORPLAN_FLOOR_THICKNESS` | `0.15` | Default slab thickness (metres) used during OBJ generation. |
+| `ALTINET_FLOORPLAN_FALLBACK_WIDTH` | `10.0` | Width (metres) of the placeholder floorplan when no saved plan exists. |
+| `ALTINET_FLOORPLAN_FALLBACK_DEPTH` | `8.0` | Depth (metres) of the placeholder floorplan when no saved plan exists. |
+| `ROS_BRIDGE_URL` | `http://localhost:8001` | Base HTTP endpoint of the ROS→Django bridge service. |
+| `ROS_BRIDGE_WS_URL` | `ws://localhost:8001` | WebSocket endpoint of the ROS→Django bridge service. |
+| `ALTINET_LLAMA_MODEL_PATH` | _empty_ | Filesystem path to the `llama.cpp` compatible model weights. |
+| `ALTINET_LLAMA_CONTEXT` | `2048` | Context window size passed to the offline LLaMA runtime. |
+| `ALTINET_LLAMA_MAX_TOKENS` | `256` | Maximum number of tokens generated per response. |
+| `ALTINET_LLAMA_TEMPERATURE` | `0.7` | Sampling temperature applied during generation. |
+| `ALTINET_LLAMA_STOP_SEQUENCES` | _empty_ | Optional `|` separated list of strings that stop generation early. |
+
 ## Identity service walkthrough
 
 The identity service classifies each detection as a resident (`user`),

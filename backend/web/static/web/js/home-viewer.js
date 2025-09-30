@@ -103,6 +103,9 @@ function prepareModel(model, scene, controls) {
   box.getCenter(target);
   const size = new THREE.Vector3();
   box.getSize(size);
+  const boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+  const radius =
+    boundingSphere?.radius || Math.max(size.x, size.y, size.z) * 0.5 || 1;
 
   model.position.sub(target);
   model.position.y -= box.min.y;
@@ -110,6 +113,8 @@ function prepareModel(model, scene, controls) {
   scene.add(model);
 
   controls.target.set(0, size.y * 0.45, 0);
+  controls.minDistance = Math.max(radius * 0.6, 0.5);
+  controls.maxDistance = Math.max(radius * 6, controls.minDistance * 1.5);
   controls.update();
 }
 

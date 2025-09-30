@@ -20,7 +20,7 @@ function initialiseViewer(containerEl, objUrl) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf4f6fb);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   const initialWidth = containerEl.clientWidth || containerEl.offsetWidth || 640;
   const initialHeight = containerEl.clientHeight || containerEl.offsetHeight || 480;
@@ -53,8 +53,7 @@ function initialiseViewer(containerEl, objUrl) {
     color: 0xd4dae4,
     roughness: 0.6,
     metalness: 0.05,
-    transparent: true,
-    opacity: 0.5,
+    opacity: 1,
   });
 
   const roofMaterial = new THREE.MeshStandardMaterial({

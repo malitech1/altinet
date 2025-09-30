@@ -10,34 +10,45 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-12 col-xl-10">
-    <div class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-4 p-md-5">
-      <div class="viewer-container">
-        <div
-          id="home-viewer"
-          class="viewer-shell rounded-4 border border-2 border-secondary-subtle position-relative overflow-hidden"
-          data-obj-url="{% static home_model_path %}"
-        >
-          <div class="viewer-overlay d-flex flex-column align-items-center justify-content-center gap-2" data-role="loading">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading 3D home model...</span>
+    <div class="bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-4 p-md-5 mb-4">
+      <div class="row gy-4 align-items-center">
+        <div class="col-lg-5 text-lg-start text-center">
+          <h1 class="display-6 fw-semibold mb-3">Welcome home</h1>
+          <p class="text-muted mb-4">
+            Explore a 3D overview of your connected home, exported straight from
+            our Blender scene. Rotate, zoom and pan to review every room and
+            device placement.
+          </p>
+          <a class="btn btn-primary btn-lg" href="{% url 'admin:index' %}">Open admin</a>
+        </div>
+        <div class="col-lg-7">
+          <div
+            id="home-viewer"
+            class="viewer-shell rounded-4 border border-2 border-secondary-subtle position-relative overflow-hidden"
+            data-obj-url="{% static 'web/models/home.obj' %}"
+          >
+            <div class="viewer-overlay d-flex flex-column align-items-center justify-content-center gap-2" data-role="loading">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading 3D home model...</span>
+              </div>
+              <p class="text-muted small mb-0">Loading home model&hellip;</p>
             </div>
-            <p class="text-muted small mb-0">Loading home model&hellip;</p>
-          </div>
-          <div class="viewer-overlay d-none text-center p-4" data-role="error">
-            <h2 class="h5 fw-semibold mb-2">We couldn't load the home</h2>
-            <p class="text-muted mb-0">
-              Please refresh the page, re-export the floorplan from Blender,
-              or check that your browser supports WebGL.
-            </p>
-          </div>
-          <noscript>
-            <div class="viewer-overlay d-flex flex-column align-items-center justify-content-center gap-2 text-center p-4">
-              <h2 class="h5 fw-semibold mb-2">JavaScript required</h2>
+            <div class="viewer-overlay d-none text-center p-4" data-role="error">
+              <h2 class="h5 fw-semibold mb-2">We couldn't load the home</h2>
               <p class="text-muted mb-0">
-                Enable JavaScript to interact with the 3D overview of your home.
+                Please refresh the page or check that your browser supports
+                WebGL.
               </p>
             </div>
-          </noscript>
+            <noscript>
+              <div class="viewer-overlay d-flex flex-column align-items-center justify-content-center gap-2 text-center p-4">
+                <h2 class="h5 fw-semibold mb-2">JavaScript required</h2>
+                <p class="text-muted mb-0">
+                  Enable JavaScript to interact with the 3D overview of your home.
+                </p>
+              </div>
+            </noscript>
+          </div>
         </div>
       </div>
     </div>

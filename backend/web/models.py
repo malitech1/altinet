@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import connection, models
+from django.utils import timezone
 from django.db.utils import OperationalError, ProgrammingError
 
 
@@ -59,3 +60,48 @@ class SystemSettings(models.Model):
 
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class TrainingProfile(models.Model):
+    """Represents a person enrolled for computer vision face training."""
+
+    full_name = models.CharField(max_length=120)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    trained_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-trained_at", "-created_at"]
+
+    def __str__(self) -> str:  # pragma: no cover - human readable representation
+        return self.full_name
+
+    def mark_trained(self) -> None:
+        """Mark the profile as having completed a training run."""
+
+        self.trained_at = timezone.now()
+        self.save(update_fields=["trained_at"])
+
+    @property
+    def image_count(self) -> int:
+        return self.images.count()
+
+
+class TrainingImage(models.Model):
+    """Image captured during a training session for a profile."""
+
+    profile = models.ForeignKey(
+        TrainingProfile,
+        on_delete=models.CASCADE,
+        related_name="images",
+    )
+    image_data = models.TextField()
+    is_active = models.BooleanField(default=True)
+    captured_at = models.DateTimeField(auto_now_add=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "captured_at", "id"]
+
+    def __str__(self) -> str:  # pragma: no cover - human readable representation
+        return f"Training image {self.pk} for {self.profile.full_name}"

@@ -1,0 +1,148 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Training | Altinet{% endblock %}
+
+{% block content %}
+<div class="row g-4" data-training-endpoint="{{ training_endpoint }}">
+  <div class="col-12 col-xl-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-dark text-white">
+        Enroll a new user
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-4">
+          Capture clear photos of the operator so Altinet can recognise them reliably.
+          Select the frames you want to keep before starting training.
+        </p>
+        <form class="d-flex flex-column gap-4" data-training-form novalidate>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label text-uppercase small fw-semibold text-secondary" for="trainingFullName">
+                Full name
+              </label>
+              <input
+                type="text"
+                class="form-control"
+                id="trainingFullName"
+                name="full_name"
+                maxlength="120"
+                required
+                data-training-name
+                placeholder="e.g. Taylor Morgan"
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label text-uppercase small fw-semibold text-secondary" for="trainingNotes">
+                Notes (optional)
+              </label>
+              <input
+                type="text"
+                class="form-control"
+                id="trainingNotes"
+                name="notes"
+                maxlength="255"
+                data-training-notes
+                placeholder="Department or role"
+              />
+            </div>
+          </div>
+
+          <div class="border rounded p-3 bg-light" data-training-camera>
+            <div class="ratio ratio-4x3 bg-dark-subtle rounded position-relative overflow-hidden">
+              <video
+                class="w-100 h-100 object-fit-cover"
+                autoplay
+                playsinline
+                muted
+                hidden
+                data-training-video
+              ></video>
+              <div
+                class="position-absolute top-50 start-50 translate-middle text-center text-muted px-3"
+                data-training-placeholder
+              >
+                <p class="mb-1 fw-semibold">Camera inactive</p>
+                <p class="mb-0 small">Enable the camera to preview and capture frames.</p>
+              </div>
+            </div>
+            <canvas data-training-canvas hidden></canvas>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <button type="button" class="btn btn-outline-primary" data-action="start-camera">
+                Start camera
+              </button>
+              <button type="button" class="btn btn-outline-success" data-action="capture" disabled>
+                Capture photo
+              </button>
+              <button type="button" class="btn btn-outline-secondary" data-action="clear" disabled>
+                Clear captures
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="h6 text-uppercase small fw-semibold text-secondary mb-2">Captured frames</h2>
+            <p class="text-muted small mb-3" data-training-empty>
+              No photos captured yet. Take a variety of angles for best results.
+            </p>
+            <div class="row row-cols-2 row-cols-md-3 g-3" data-training-captures></div>
+          </div>
+
+          <div class="d-flex flex-column flex-md-row align-items-md-center gap-3">
+            <div class="small text-muted" data-training-status role="status"></div>
+            <div class="ms-md-auto d-flex gap-2">
+              <button type="submit" class="btn btn-primary" data-action="train" disabled>
+                Train
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-dark text-white">Recent training sessions</div>
+      <div class="card-body">
+        {% if profiles %}
+        <p class="small text-muted">
+          Most recent training runs are listed below. Re-run training if lighting conditions change.
+        </p>
+        <div class="list-group list-group-flush">
+          {% for profile in profiles %}
+          <div class="list-group-item px-0">
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex justify-content-between flex-wrap gap-2 align-items-center">
+                <h3 class="h6 mb-0">{{ profile.full_name }}</h3>
+                <span class="badge text-bg-secondary">{{ profile.image_count }} images</span>
+              </div>
+              <p class="text-muted small mb-0">
+                {% if profile.trained_at %}
+                Trained {{ profile.trained_at|date:"M j, Y" }} at {{ profile.trained_at|time:"H:i" }}
+                {% else %}
+                Awaiting initial training run
+                {% endif %}
+              </p>
+              {% if profile.notes %}
+              <p class="small mb-0">{{ profile.notes }}</p>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <p class="fw-semibold mb-1">No training history yet</p>
+          <p class="small mb-0">Enroll a team member to see their training status here.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script src="{% static 'web/js/training.js' %}"></script>
+{% endblock %}

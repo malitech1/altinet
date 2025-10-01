@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import json
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -7,9 +11,10 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .forms import SystemSettingsForm, UserSettingsForm
-from .models import SystemSettings
+from .models import SystemSettings, TrainingImage, TrainingProfile
 from .weather import fetch_weather_snapshot
 
 
@@ -179,6 +184,123 @@ def weather_snapshot(request):
         )
 
     return JsonResponse({"success": False}, status=503)
+
+
+def _clean_image_data_uri(data_uri: str) -> str | None:
+    """Validate that a provided data URI contains base64 encoded image data."""
+
+    if not isinstance(data_uri, str):
+        return None
+
+    candidate = data_uri.strip()
+    if not candidate.startswith("data:image/"):
+        return None
+
+    header, _, base64_data = candidate.partition(",")
+    if not base64_data:
+        return None
+
+    if ";base64" not in header.lower():
+        return None
+
+    try:
+        base64.b64decode(base64_data, validate=True)
+    except (binascii.Error, ValueError):
+        return None
+
+    return f"{header},{base64_data}"
+
+
+@login_required
+def training(request):
+    """Render the training workspace for capturing and enrolling faces."""
+
+    profiles = TrainingProfile.objects.prefetch_related("images").all()
+
+    return render(
+        request,
+        "web/training.html",
+        {
+            "profiles": profiles,
+            "training_endpoint": reverse("web:training-create"),
+        },
+    )
+
+
+@login_required
+@require_POST
+def training_create(request):
+    """Create a new training profile from captured image data."""
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse(
+            {"success": False, "error": "Invalid JSON payload."}, status=400
+        )
+
+    full_name = (payload.get("full_name") or "").strip()
+    notes = (payload.get("notes") or "").strip()
+    raw_images = payload.get("images")
+
+    if not full_name:
+        return JsonResponse(
+            {"success": False, "error": "A name is required to train a profile."},
+            status=400,
+        )
+
+    if not isinstance(raw_images, list):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Images must be supplied as a list of data URIs.",
+            },
+            status=400,
+        )
+
+    cleaned_images: list[str] = []
+    for data_uri in raw_images:
+        cleaned = _clean_image_data_uri(data_uri)
+        if cleaned:
+            cleaned_images.append(cleaned)
+
+    if not cleaned_images:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Select at least one valid captured image before training.",
+            },
+            status=400,
+        )
+
+    profile = TrainingProfile.objects.create(full_name=full_name, notes=notes)
+
+    TrainingImage.objects.bulk_create(
+        [
+            TrainingImage(
+                profile=profile,
+                image_data=image,
+                display_order=index,
+            )
+            for index, image in enumerate(cleaned_images)
+        ]
+    )
+
+    profile.mark_trained()
+
+    return JsonResponse(
+        {
+            "success": True,
+            "profile": {
+                "id": profile.id,
+                "full_name": profile.full_name,
+                "trained_at": profile.trained_at.isoformat() if profile.trained_at else None,
+                "image_count": profile.image_count,
+            },
+            "message": f"Training complete for {profile.full_name}.",
+        },
+        status=201,
+    )
 
 
 @login_required

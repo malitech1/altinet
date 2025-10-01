@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
-from web.models import SystemSettings
+from web.models import SystemSettings, TrainingImage, TrainingProfile
 
 
 pytestmark = pytest.mark.django_db
@@ -130,3 +132,72 @@ def test_operator_can_adjust_system_settings(client: Client) -> None:
     assert (
         settings_obj.home_address == "1600 Pennsylvania Avenue NW, Washington, DC"
     )
+
+
+def test_training_requires_authentication(client: Client) -> None:
+    response = client.get(reverse("web:training"))
+
+    assert response.status_code == 302
+    assert reverse("login") in response.url
+
+
+def test_training_page_lists_existing_profiles(client: Client) -> None:
+    user = User.objects.create_user(username="trainer", password="password123")
+    client.force_login(user)
+
+    profile = TrainingProfile.objects.create(full_name="Alex Johnson", notes="Security")
+    TrainingImage.objects.create(
+        profile=profile,
+        image_data="data:image/png;base64,dGVzdA==",
+    )
+    profile.mark_trained()
+
+    response = client.get(reverse("web:training"))
+
+    assert response.status_code == 200
+    assert b"Enroll a new user" in response.content
+    assert b"Alex Johnson" in response.content
+
+
+def test_training_endpoint_creates_profile(client: Client) -> None:
+    user = User.objects.create_user(username="coach", password="password123")
+    client.force_login(user)
+
+    payload = {
+        "full_name": "Jordan Smith",
+        "notes": "Engineering",
+        "images": [
+            "data:image/png;base64,dGVzdA==",
+            "data:image/jpeg;base64,dGVzdDI=",
+        ],
+    }
+
+    response = client.post(
+        reverse("web:training-create"),
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["success"] is True
+    profile = TrainingProfile.objects.get(full_name="Jordan Smith")
+    assert profile.notes == "Engineering"
+    assert profile.trained_at is not None
+    assert profile.images.count() == 2
+
+
+def test_training_endpoint_validates_payload(client: Client) -> None:
+    user = User.objects.create_user(username="validator", password="password123")
+    client.force_login(user)
+
+    response = client.post(
+        reverse("web:training-create"),
+        data=json.dumps({"full_name": "Taylor"}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["success"] is False
+    assert "image" in payload["error"].lower()

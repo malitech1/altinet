@@ -42,6 +42,7 @@ function initialiseViewer(containerEl, objUrl) {
   controls.maxPolarAngle = Math.PI / 2.1;
 
   let updateSmoothZoom = () => {};
+  let updateRoomAnnotations = () => {};
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -65,13 +66,19 @@ function initialiseViewer(containerEl, objUrl) {
 
   loadObjModel(objUrl, { wallMaterial, roofMaterial })
     .then((object) => {
-      const distances = prepareModel(object, scene, controls);
+      const { distances, bounds } = prepareModel(object, scene, controls);
       updateSmoothZoom = setupSmoothScrollZoom(
         controls,
         camera,
         renderer.domElement,
         distances,
       );
+      updateRoomAnnotations = createRoomAnnotations({
+        containerEl,
+        camera,
+        renderer,
+        bounds,
+      });
       animate();
     })
     .catch((error) => {
@@ -89,6 +96,7 @@ function initialiseViewer(containerEl, objUrl) {
   function animate() {
     requestAnimationFrame(animate);
     updateSmoothZoom();
+    updateRoomAnnotations();
     controls.update();
     renderer.render(scene, camera);
   }
@@ -129,7 +137,9 @@ function prepareModel(model, scene, controls) {
   controls.maxDistance = maxDistance;
   controls.update();
 
-  return { minDistance, maxDistance };
+  const adjustedBounds = new THREE.Box3().setFromObject(model);
+
+  return { distances: { minDistance, maxDistance }, bounds: adjustedBounds };
 }
 
 function setupSmoothScrollZoom(controls, camera, domElement, distances) {
@@ -294,6 +304,183 @@ function setupSmoothScrollZoom(controls, camera, domElement, distances) {
     newPosition.copy(direction).multiplyScalar(nextDistance).add(target);
     camera.position.copy(newPosition);
   };
+}
+
+function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'viewer-annotations';
+  containerEl.appendChild(overlay);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('viewer-annotations__canvas');
+  svg.setAttribute('role', 'presentation');
+  overlay.appendChild(svg);
+
+  const roomDefinitions = [
+    {
+      name: 'Living Room',
+      relativePosition: { x: 0.78, y: 0.15, z: 0.36 },
+      anchor: 'right',
+      metrics: {
+        temperature: '21.5°C',
+        occupants: '2 people',
+        brightness: '340 lux',
+        noise: '38 dBA',
+      },
+    },
+    {
+      name: 'Kitchen',
+      relativePosition: { x: 0.28, y: 0.18, z: 0.35 },
+      anchor: 'left',
+      metrics: {
+        temperature: '23.1°C',
+        occupants: '1 person',
+        brightness: '420 lux',
+        noise: '41 dBA',
+      },
+    },
+    {
+      name: 'Bedroom',
+      relativePosition: { x: 0.32, y: 0.18, z: 0.74 },
+      anchor: 'left',
+      metrics: {
+        temperature: '20.2°C',
+        occupants: '0 people',
+        brightness: '120 lux',
+        noise: '30 dBA',
+      },
+    },
+  ];
+
+  const lerp = THREE.MathUtils.lerp;
+  const toWorldPosition = (relative) => {
+    const x = lerp(bounds.min.x, bounds.max.x, relative.x);
+    const y = lerp(bounds.min.y, bounds.max.y, relative.y ?? 0.5);
+    const z = lerp(bounds.min.z, bounds.max.z, relative.z);
+    return new THREE.Vector3(x, y, z);
+  };
+
+  const renderCard = (room) => {
+    const metrics = room.metrics;
+    return `
+      <h3 class="room-info-card__title">${room.name}</h3>
+      <dl class="room-info-card__metrics">
+        <div class="room-info-card__metric">
+          <dt>Temp</dt>
+          <dd>${metrics.temperature}</dd>
+        </div>
+        <div class="room-info-card__metric">
+          <dt>People</dt>
+          <dd>${metrics.occupants}</dd>
+        </div>
+        <div class="room-info-card__metric">
+          <dt>Brightness</dt>
+          <dd>${metrics.brightness}</dd>
+        </div>
+        <div class="room-info-card__metric">
+          <dt>Ambient noise</dt>
+          <dd>${metrics.noise}</dd>
+        </div>
+      </dl>
+    `;
+  };
+
+  const entries = roomDefinitions.map((room) => {
+    const card = document.createElement('article');
+    card.className = 'room-info-card';
+    card.innerHTML = renderCard(room);
+    overlay.appendChild(card);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.classList.add('room-info-connector');
+    line.setAttribute('stroke', 'rgba(0, 0, 0, 0.5)');
+    line.setAttribute('stroke-width', '1.25');
+    line.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(line);
+
+    return {
+      room,
+      card,
+      line,
+      worldPosition: toWorldPosition(room.relativePosition),
+    };
+  });
+
+  const rendererSize = new THREE.Vector2();
+  const projectedPosition = new THREE.Vector3();
+
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const update = () => {
+    renderer.getSize(rendererSize);
+    const width = rendererSize.x;
+    const height = rendererSize.y;
+
+    overlay.style.width = `${width}px`;
+    overlay.style.height = `${height}px`;
+    svg.setAttribute('width', `${width}`);
+    svg.setAttribute('height', `${height}`);
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+    const margin = 16;
+    const defaultHorizontalOffset = 160;
+
+    for (const entry of entries) {
+      projectedPosition.copy(entry.worldPosition).project(camera);
+
+      const visible =
+        projectedPosition.z > -1 &&
+        projectedPosition.z < 1 &&
+        Math.abs(projectedPosition.x) <= 1.2 &&
+        Math.abs(projectedPosition.y) <= 1.2;
+
+      if (!visible) {
+        entry.card.style.opacity = '0';
+        entry.card.style.pointerEvents = 'none';
+        entry.line.setAttribute('opacity', '0');
+        continue;
+      }
+
+      entry.card.style.opacity = '';
+      entry.card.style.pointerEvents = '';
+      entry.line.setAttribute('opacity', '1');
+
+      const anchor = entry.room.anchor ?? (projectedPosition.x < 0 ? 'left' : 'right');
+      entry.card.classList.toggle('room-info-card--left', anchor === 'left');
+      entry.card.classList.toggle('room-info-card--right', anchor === 'right');
+
+      const x = (projectedPosition.x * 0.5 + 0.5) * width;
+      const y = (-projectedPosition.y * 0.5 + 0.5) * height;
+
+      const cardWidth = entry.card.offsetWidth || 200;
+      const cardHeight = entry.card.offsetHeight || 140;
+      const halfHeight = cardHeight / 2;
+
+      const verticalOffset = entry.room.verticalOffset ?? 0;
+      let connectionY = clamp(y + verticalOffset, margin + halfHeight, height - margin - halfHeight);
+
+      const horizontalOffset = entry.room.horizontalOffset ?? defaultHorizontalOffset;
+      let connectionX =
+        anchor === 'right' ? x + horizontalOffset : x - horizontalOffset;
+
+      if (anchor === 'right') {
+        connectionX = clamp(connectionX, margin, width - margin - cardWidth);
+      } else {
+        connectionX = clamp(connectionX, margin + cardWidth, width - margin);
+      }
+
+      entry.card.style.left = `${connectionX}px`;
+      entry.card.style.top = `${connectionY}px`;
+
+      entry.line.setAttribute('x1', `${x}`);
+      entry.line.setAttribute('y1', `${y}`);
+      entry.line.setAttribute('x2', `${connectionX}`);
+      entry.line.setAttribute('y2', `${connectionY}`);
+    }
+  };
+
+  update();
+  return update;
 }
 
 async function loadObjModel(url, materials) {

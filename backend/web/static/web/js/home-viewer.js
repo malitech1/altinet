@@ -499,6 +499,7 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
 
     const layoutEntries = [];
 
+
     for (const entry of entries) {
       projectedPosition.copy(entry.worldPosition).project(camera);
 
@@ -537,6 +538,7 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
           ? x + (entry.room.horizontalOffset ?? defaultHorizontalOffset)
           : x - (entry.room.horizontalOffset ?? defaultHorizontalOffset);
 
+
       if (anchor === 'right') {
         connectionX = clamp(connectionX, margin, width - margin - cardWidth);
       } else {
@@ -569,6 +571,15 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
 
       entry.line.setAttribute('x2', `${connectionX}`);
       entry.line.setAttribute('y2', `${centerY}`);
+
+      entry.card.style.left = `${connectionX}px`;
+      entry.card.style.top = `${connectionY}px`;
+
+      entry.line.setAttribute('x1', `${x}`);
+      entry.line.setAttribute('y1', `${y}`);
+      entry.line.setAttribute('x2', `${connectionX}`);
+      entry.line.setAttribute('y2', `${connectionY}`);
+
     }
   };
 

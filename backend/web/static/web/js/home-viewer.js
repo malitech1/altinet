@@ -411,6 +411,77 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
+  const preventCollisions = (items, containerHeight, margin, spacing) => {
+    const groups = {
+      left: [],
+      right: [],
+    };
+
+    for (const item of items) {
+      groups[item.anchor]?.push(item);
+    }
+
+    const enforceGroup = (group) => {
+      if (group.length === 0) {
+        return;
+      }
+
+      group.sort((a, b) => a.centerY - b.centerY);
+
+      let previous = null;
+      for (const item of group) {
+        const minCenter = margin + item.halfHeight;
+        const maxCenter = containerHeight - margin - item.halfHeight;
+        let center = clamp(item.centerY, minCenter, maxCenter);
+        if (previous) {
+          const minAllowed =
+            previous.centerY + previous.halfHeight + item.halfHeight + spacing;
+          if (center < minAllowed) {
+            center = minAllowed;
+          }
+        }
+        item.centerY = clamp(center, minCenter, maxCenter);
+        previous = item;
+      }
+
+      let next = null;
+      for (let index = group.length - 1; index >= 0; index -= 1) {
+        const item = group[index];
+        const minCenter = margin + item.halfHeight;
+        const maxCenter = containerHeight - margin - item.halfHeight;
+        let center = clamp(item.centerY, minCenter, maxCenter);
+        if (next) {
+          const maxAllowed =
+            next.centerY - (next.halfHeight + item.halfHeight + spacing);
+          if (center > maxAllowed) {
+            center = maxAllowed;
+          }
+        }
+        item.centerY = clamp(center, minCenter, maxCenter);
+        next = item;
+      }
+
+      previous = null;
+      for (const item of group) {
+        const minCenter = margin + item.halfHeight;
+        const maxCenter = containerHeight - margin - item.halfHeight;
+        let center = clamp(item.centerY, minCenter, maxCenter);
+        if (previous) {
+          const minAllowed =
+            previous.centerY + previous.halfHeight + item.halfHeight + spacing;
+          if (center < minAllowed) {
+            center = minAllowed;
+          }
+        }
+        item.centerY = clamp(center, minCenter, maxCenter);
+        previous = item;
+      }
+    };
+
+    enforceGroup(groups.left);
+    enforceGroup(groups.right);
+  };
+
   const update = () => {
     renderer.getSize(rendererSize);
     const width = rendererSize.x;
@@ -422,8 +493,12 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
     svg.setAttribute('height', `${height}`);
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
-    const margin = 16;
-    const defaultHorizontalOffset = 160;
+    const margin = 12;
+    const spacing = 12;
+    const defaultHorizontalOffset = 140;
+
+    const layoutEntries = [];
+
 
     for (const entry of entries) {
       projectedPosition.copy(entry.worldPosition).project(camera);
@@ -452,22 +527,50 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
       const x = (projectedPosition.x * 0.5 + 0.5) * width;
       const y = (-projectedPosition.y * 0.5 + 0.5) * height;
 
-      const cardWidth = entry.card.offsetWidth || 200;
-      const cardHeight = entry.card.offsetHeight || 140;
+      const cardWidth = entry.card.offsetWidth || 180;
+      const cardHeight = entry.card.offsetHeight || 120;
       const halfHeight = cardHeight / 2;
 
       const verticalOffset = entry.room.verticalOffset ?? 0;
-      let connectionY = clamp(y + verticalOffset, margin + halfHeight, height - margin - halfHeight);
-
-      const horizontalOffset = entry.room.horizontalOffset ?? defaultHorizontalOffset;
+      let connectionY = y + verticalOffset;
       let connectionX =
-        anchor === 'right' ? x + horizontalOffset : x - horizontalOffset;
+        anchor === 'right'
+          ? x + (entry.room.horizontalOffset ?? defaultHorizontalOffset)
+          : x - (entry.room.horizontalOffset ?? defaultHorizontalOffset);
+
 
       if (anchor === 'right') {
         connectionX = clamp(connectionX, margin, width - margin - cardWidth);
       } else {
         connectionX = clamp(connectionX, margin + cardWidth, width - margin);
       }
+
+      layoutEntries.push({
+        entry,
+        anchor,
+        connectionX,
+        centerY: clamp(
+          connectionY,
+          margin + halfHeight,
+          height - margin - halfHeight,
+        ),
+        halfHeight,
+      });
+
+      entry.line.setAttribute('x1', `${x}`);
+      entry.line.setAttribute('y1', `${y}`);
+    }
+
+    preventCollisions(layoutEntries, height, margin, spacing);
+
+    for (const layout of layoutEntries) {
+      const { entry, connectionX, centerY } = layout;
+
+      entry.card.style.left = `${connectionX}px`;
+      entry.card.style.top = `${centerY}px`;
+
+      entry.line.setAttribute('x2', `${connectionX}`);
+      entry.line.setAttribute('y2', `${centerY}`);
 
       entry.card.style.left = `${connectionX}px`;
       entry.card.style.top = `${connectionY}px`;
@@ -476,6 +579,7 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
       entry.line.setAttribute('y1', `${y}`);
       entry.line.setAttribute('x2', `${connectionX}`);
       entry.line.setAttribute('y2', `${connectionY}`);
+
     }
   };
 

@@ -537,6 +537,7 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
         margin + halfHeight,
         height - margin - halfHeight,
       );
+      const connectionY = clampedCenterY;
       let connectionX =
         anchor === 'right'
           ? x + (entry.room.horizontalOffset ?? defaultHorizontalOffset)
@@ -553,28 +554,28 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
         entry,
         anchor,
         connectionX,
-        centerY: clampedCenterY,
+        connectionY,
         halfHeight,
         lineStart: { x, y },
       });
 
       entry.line.setAttribute('x1', `${x}`);
       entry.line.setAttribute('y1', `${y}`);
-      entry.line.setAttribute('y2', `${clampedCenterY}`);
+      entry.line.setAttribute('y2', `${connectionY}`);
     }
 
     preventCollisions(layoutEntries, height, margin, spacing);
 
     for (const layout of layoutEntries) {
-      const { entry, connectionX, centerY, lineStart } = layout;
+      const { entry, connectionX, connectionY, lineStart } = layout;
 
       entry.card.style.left = `${connectionX}px`;
-      entry.card.style.top = `${centerY}px`;
+      entry.card.style.top = `${connectionY}px`;
 
       entry.line.setAttribute('x1', `${lineStart.x}`);
       entry.line.setAttribute('y1', `${lineStart.y}`);
       entry.line.setAttribute('x2', `${connectionX}`);
-      entry.line.setAttribute('y2', `${centerY}`);
+      entry.line.setAttribute('y2', `${connectionY}`);
     }
   };
 

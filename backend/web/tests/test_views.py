@@ -207,7 +207,7 @@ def test_training_test_requires_face_components(
     user = User.objects.create_user(username="tester", password="password123")
     client.force_login(user)
 
-    monkeypatch.setattr("web.views._get_face_analyzer", lambda: None)
+    monkeypatch.setattr("web.services.face_training.get_face_analyzer", lambda: None)
 
     response = client.post(
         reverse("web:training-test"),
@@ -235,13 +235,13 @@ def test_training_test_returns_match(
         "data:image/png;base64,cHJvYmU=": np.array([1.0, 0.0], dtype=float),
     }
 
-    monkeypatch.setattr("web.views._get_face_analyzer", lambda: object())
-    monkeypatch.setattr("web.views._load_image_from_data_uri", lambda data: data)
+    monkeypatch.setattr("web.services.face_training.get_face_analyzer", lambda: object())
+    monkeypatch.setattr("web.services.face_training.load_image_from_data_uri", lambda data: data)
     monkeypatch.setattr(
-        "web.views._extract_embedding", lambda analyzer, image: embeddings.get(image)
+        "web.services.face_training.extract_embedding", lambda analyzer, image: embeddings.get(image)
     )
     monkeypatch.setattr(
-        "web.views._embedding_for_training_image",
+        "web.services.face_training.embedding_for_training_image",
         lambda analyzer, image: embeddings.get(image.image_data),
     )
 
@@ -275,13 +275,13 @@ def test_training_test_handles_no_match(
         "data:image/png;base64,cHJvYmU=": np.array([1.0, 0.0], dtype=float),
     }
 
-    monkeypatch.setattr("web.views._get_face_analyzer", lambda: object())
-    monkeypatch.setattr("web.views._load_image_from_data_uri", lambda data: data)
+    monkeypatch.setattr("web.services.face_training.get_face_analyzer", lambda: object())
+    monkeypatch.setattr("web.services.face_training.load_image_from_data_uri", lambda data: data)
     monkeypatch.setattr(
-        "web.views._extract_embedding", lambda analyzer, image: embeddings.get(image)
+        "web.services.face_training.extract_embedding", lambda analyzer, image: embeddings.get(image)
     )
     monkeypatch.setattr(
-        "web.views._embedding_for_training_image",
+        "web.services.face_training.embedding_for_training_image",
         lambda analyzer, image: embeddings.get(image.image_data),
     )
 

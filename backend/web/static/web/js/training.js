@@ -119,6 +119,10 @@ if (container) {
 
   const updateButtons = () => {
     const hasCaptures = captures.some((capture) => capture.selected);
+    const cameraSupported = Boolean(navigator.mediaDevices?.getUserMedia);
+    const testingAvailable = Boolean(testingEndpoint);
+    const allowTesting =
+      testingAvailable && (hasCaptures || cameraSupported) && !testBusy;
     if (clearButton) {
       clearButton.disabled = captures.length === 0;
     }
@@ -127,9 +131,7 @@ if (container) {
       trainButton.disabled = !hasCaptures || !nameFilled;
     }
     if (testButton) {
-      const testingAvailable = Boolean(testingEndpoint);
-      const cameraSupported = Boolean(navigator.mediaDevices?.getUserMedia);
-      testButton.disabled = testBusy || !testingAvailable || !cameraSupported;
+      testButton.disabled = !allowTesting;
     }
   };
 
@@ -365,55 +367,73 @@ if (container) {
       setTestStatus("Testing endpoint unavailable.", true);
       return;
     }
-    if (!videoElement || !testCanvas) {
+
+    const selectedCapture = captures.find((capture) => capture.selected);
+    const usingCamera = !selectedCapture;
+
+    if (usingCamera && (!videoElement || !testCanvas)) {
+      setTestStatus("Camera preview unavailable. Start the camera and try again.", true);
       return;
     }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+
+    if (usingCamera && (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
       setTestStatus("Camera access is not supported in this browser.", true);
       updateButtons();
       return;
     }
 
-    if (!streamHasLiveTracks(mediaStream)) {
+    if (usingCamera && !streamHasLiveTracks(mediaStream)) {
       await startCamera();
     }
 
-    if (!streamHasLiveTracks(mediaStream)) {
+    if (usingCamera && !streamHasLiveTracks(mediaStream)) {
       setTestStatus("Camera unavailable. Start the camera and try again.", true);
       return;
     }
 
-    const hasFrame = await waitForVideoFrame();
-    if (!hasFrame) {
-      setTestStatus("Camera is warming up. Try again shortly.", true);
-      return;
+    let dataUrl = selectedCapture?.dataUrl || "";
+
+    if (usingCamera) {
+      const hasFrame = await waitForVideoFrame();
+      if (!hasFrame) {
+        setTestStatus("Camera is warming up. Try again shortly.", true);
+        return;
+      }
+
+      const width = videoElement.videoWidth;
+      const height = videoElement.videoHeight;
+      const context = testCanvas.getContext("2d");
+      if (!context) {
+        setTestStatus("Unable to analyse the current frame.", true);
+        return;
+      }
+
+      testCanvas.width = width;
+      testCanvas.height = height;
+      context.drawImage(videoElement, 0, 0, width, height);
+
+      try {
+        dataUrl = testCanvas.toDataURL("image/jpeg", 0.92);
+      } catch (error) {
+        console.error("Failed to encode frame for testing", error);
+        setTestStatus("We couldn't capture that frame. Try again.", true);
+        return;
+      }
     }
 
-    const width = videoElement.videoWidth;
-    const height = videoElement.videoHeight;
-    const context = testCanvas.getContext("2d");
-    if (!context) {
-      setTestStatus("Unable to analyse the current frame.", true);
-      return;
-    }
-
-    testCanvas.width = width;
-    testCanvas.height = height;
-    context.drawImage(videoElement, 0, 0, width, height);
-
-    let dataUrl = "";
-    try {
-      dataUrl = testCanvas.toDataURL("image/jpeg", 0.92);
-    } catch (error) {
-      console.error("Failed to encode frame for testing", error);
-      setTestStatus("We couldn't capture that frame. Try again.", true);
+    if (!dataUrl) {
+      setTestStatus("Select a capture or start the camera to run a test.", true);
       return;
     }
 
     const csrfToken = getCsrfToken();
     testBusy = true;
     updateButtons();
-    setTestStatus("Checking for trained faces…");
+    setTestStatus(
+      usingCamera
+        ? "Checking the live camera for trained faces…"
+        : "Checking the selected capture for trained faces…",
+    );
     showTestResult("");
 
     try {
@@ -444,13 +464,18 @@ if (container) {
           `${data.message || "Match found."} Confidence ${confidence.toFixed(2)}.`,
           "success",
         );
-        setTestStatus(`Detected ${name} with confidence ${confidence.toFixed(2)}.`);
+        setTestStatus(
+          `Detected ${name} with confidence ${confidence.toFixed(2)}.`,
+        );
       } else {
         showTestResult(
           `${data.message || "No trained faces matched."} Confidence ${confidence.toFixed(2)}.`,
           "warning",
         );
-        setTestStatus(data.message || "No matches found.");
+        setTestStatus(
+          data.message ||
+            "A face was detected, but no trained profile matched.",
+        );
       }
     } catch (error) {
       console.error("Testing request failed", error);

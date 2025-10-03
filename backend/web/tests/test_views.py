@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import numpy as np
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
@@ -198,6 +199,100 @@ def test_training_endpoint_validates_payload(client: Client) -> None:
     )
 
     assert response.status_code == 400
+
+
+def test_training_test_requires_face_components(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = User.objects.create_user(username="tester", password="password123")
+    client.force_login(user)
+
+    monkeypatch.setattr("web.views._get_face_analyzer", lambda: None)
+
+    response = client.post(
+        reverse("web:training-test"),
+        data=json.dumps({"image": "data:image/png;base64,AAAA"}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 503
+
+
+def test_training_test_returns_match(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = User.objects.create_user(username="match", password="password123")
+    client.force_login(user)
+
+    profile = TrainingProfile.objects.create(full_name="Jordan Smith")
+    TrainingImage.objects.create(
+        profile=profile,
+        image_data="data:image/png;base64,dHJhaW4=",
+    )
+
+    embeddings = {
+        "data:image/png;base64,dHJhaW4=": np.array([1.0, 0.0], dtype=float),
+        "data:image/png;base64,cHJvYmU=": np.array([1.0, 0.0], dtype=float),
+    }
+
+    monkeypatch.setattr("web.views._get_face_analyzer", lambda: object())
+    monkeypatch.setattr("web.views._load_image_from_data_uri", lambda data: data)
+    monkeypatch.setattr(
+        "web.views._extract_embedding", lambda analyzer, image: embeddings.get(image)
+    )
+    monkeypatch.setattr(
+        "web.views._embedding_for_training_image",
+        lambda analyzer, image: embeddings.get(image.image_data),
+    )
+
+    response = client.post(
+        reverse("web:training-test"),
+        data=json.dumps({"image": "data:image/png;base64,cHJvYmU="}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is False
-    assert "image" in payload["error"].lower()
+    assert payload["success"] is True
+    assert payload["match"]["full_name"] == "Jordan Smith"
+    assert payload["message"].startswith("Match found")
+
+
+def test_training_test_handles_no_match(
+    client: Client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = User.objects.create_user(username="nomatch", password="password123")
+    client.force_login(user)
+
+    profile = TrainingProfile.objects.create(full_name="Alex Johnson")
+    TrainingImage.objects.create(
+        profile=profile,
+        image_data="data:image/png;base64,dHJhaW4=",
+    )
+
+    embeddings = {
+        "data:image/png;base64,dHJhaW4=": np.array([0.0, 1.0], dtype=float),
+        "data:image/png;base64,cHJvYmU=": np.array([1.0, 0.0], dtype=float),
+    }
+
+    monkeypatch.setattr("web.views._get_face_analyzer", lambda: object())
+    monkeypatch.setattr("web.views._load_image_from_data_uri", lambda data: data)
+    monkeypatch.setattr(
+        "web.views._extract_embedding", lambda analyzer, image: embeddings.get(image)
+    )
+    monkeypatch.setattr(
+        "web.views._embedding_for_training_image",
+        lambda analyzer, image: embeddings.get(image.image_data),
+    )
+
+    response = client.post(
+        reverse("web:training-test"),
+        data=json.dumps({"image": "data:image/png;base64,cHJvYmU="}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["match"] is None
+    assert payload["message"] == "No trained faces matched the capture."

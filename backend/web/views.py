@@ -19,7 +19,7 @@ from .services.face_training import (
     evaluate_face_test,
     reset_training_embedding_cache,
 )
-from .weather import fetch_weather_snapshot
+from .weather import default_weather_snapshot, fetch_weather_snapshot
 
 
 def _wind_direction_to_cardinal(degrees: float | None) -> str | None:
@@ -175,19 +175,24 @@ def weather_snapshot(request):
 
     system_settings = SystemSettings.load()
     snapshot = fetch_weather_snapshot(system_settings.home_address)
-    if snapshot:
-        snapshot["wind_direction_cardinal"] = _wind_direction_to_cardinal(
-            snapshot.get("wind_direction_deg")
-        )
-        return JsonResponse(
-            {
-                "success": True,
-                "data": snapshot,
-                "retrieved_at": timezone.now().isoformat(),
-            }
-        )
+    source = "live"
 
-    return JsonResponse({"success": False}, status=503)
+    if not snapshot:
+        snapshot = default_weather_snapshot()
+        source = "fallback"
+
+    snapshot["wind_direction_cardinal"] = _wind_direction_to_cardinal(
+        snapshot.get("wind_direction_deg")
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "data": snapshot,
+            "retrieved_at": timezone.now().isoformat(),
+            "source": source,
+        }
+    )
 
 
 @login_required

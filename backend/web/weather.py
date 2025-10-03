@@ -18,6 +18,22 @@ REQUEST_HEADERS = {
     )
 }
 
+FALLBACK_WEATHER_SNAPSHOT: Dict[str, Any] = {
+    "outside_temperature_c": 23.5,
+    "outside_humidity": 64,
+    "weather_summary": "Partly cloudy",
+    "wind_speed_kmh": 13.0,
+    "wind_direction_deg": 135,
+    "air_quality_index": 42,
+    "location_timezone": "Australia/Brisbane",
+}
+
+
+def default_weather_snapshot() -> Dict[str, Any]:
+    """Return a representative weather payload when live data is unavailable."""
+
+    return dict(FALLBACK_WEATHER_SNAPSHOT)
+
 
 @dataclass
 class WeatherSnapshot:

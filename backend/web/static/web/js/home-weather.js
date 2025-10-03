@@ -72,19 +72,19 @@ if (container) {
     },
   };
 
-  const setStatus = (message, isError = false) => {
+  const setStatus = (message, tone = "info") => {
     if (!statusElement) {
       return;
     }
     statusElement.textContent = message;
-    if (isError) {
+    statusElement.classList.remove("text-danger", "text-warning", "text-muted");
+
+    if (tone === "error") {
       statusElement.classList.add("text-danger");
-      statusElement.classList.remove("text-muted");
+    } else if (tone === "warning") {
+      statusElement.classList.add("text-warning");
     } else {
-      statusElement.classList.remove("text-danger");
-      if (!statusElement.classList.contains("text-muted")) {
-        statusElement.classList.add("text-muted");
-      }
+      statusElement.classList.add("text-muted");
     }
   };
 
@@ -120,14 +120,19 @@ if (container) {
     });
   };
 
-  const updateStatusTimestamp = (retrievedAt) => {
+  const updateStatusTimestamp = (retrievedAt, source = "live") => {
     if (!statusElement) {
       return;
     }
 
     const timestamp = retrievedAt ? new Date(retrievedAt) : new Date();
     if (Number.isNaN(timestamp.getTime())) {
-      setStatus("Latest conditions updated.");
+      const tone = source === "fallback" ? "warning" : "info";
+      const message =
+        source === "fallback"
+          ? "Showing fallback weather conditions."
+          : "Latest conditions updated.";
+      setStatus(message, tone);
       return;
     }
 
@@ -136,7 +141,15 @@ if (container) {
       minute: "2-digit",
     });
 
-    setStatus(`Updated ${formatter.format(timestamp)} local time.`);
+    const formattedTime = formatter.format(timestamp);
+    if (source === "fallback") {
+      setStatus(
+        `Updated ${formattedTime} local time. Showing fallback weather data.`,
+        "warning",
+      );
+    } else {
+      setStatus(`Updated ${formattedTime} local time.`, "info");
+    }
   };
 
   const loadWeather = async () => {
@@ -159,10 +172,13 @@ if (container) {
       }
 
       applyWeatherData(payload.data);
-      updateStatusTimestamp(payload.retrieved_at);
+      updateStatusTimestamp(
+        payload.retrieved_at,
+        payload.source ?? "live",
+      );
     } catch (error) {
       console.error("Failed to load weather data", error);
-      setStatus("Unable to load latest weather for Macleay Island.", true);
+      setStatus("Unable to load latest weather for Macleay Island.", "error");
     } finally {
       window.setTimeout(loadWeather, REFRESH_INTERVAL_MS);
     }
@@ -170,7 +186,7 @@ if (container) {
 
   const startFetching = () => {
     if (!endpoint) {
-      setStatus("Weather endpoint is not configured.", true);
+      setStatus("Weather endpoint is not configured.", "error");
       return;
     }
     loadWeather();

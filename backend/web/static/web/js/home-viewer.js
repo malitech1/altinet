@@ -1,5 +1,5 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js?module';
-import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js?module';
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
 const container = document.getElementById('home-viewer');
 if (!container) {
@@ -537,7 +537,7 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
         margin + halfHeight,
         height - margin - halfHeight,
       );
-      const connectionY = clampedCenterY;
+      const connectionYPosition = clampedCenterY;
       let connectionX =
         anchor === 'right'
           ? x + (entry.room.horizontalOffset ?? defaultHorizontalOffset)
@@ -554,14 +554,14 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
         entry,
         anchor,
         connectionX,
-        connectionY,
+        connectionY: connectionYPosition,
         halfHeight,
         lineStart: { x, y },
       });
 
       entry.line.setAttribute('x1', `${x}`);
       entry.line.setAttribute('y1', `${y}`);
-      entry.line.setAttribute('y2', `${connectionY}`);
+      entry.line.setAttribute('y2', `${connectionYPosition}`);
     }
 
     preventCollisions(layoutEntries, height, margin, spacing);

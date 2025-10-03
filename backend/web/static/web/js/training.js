@@ -9,6 +9,7 @@ if (container) {
   const startButton = form?.querySelector('[data-action="start-camera"]');
   const captureButton = form?.querySelector('[data-action="capture"]');
   const clearButton = form?.querySelector('[data-action="clear"]');
+  const testButton = form?.querySelector('[data-action="test"]');
   const trainButton = form?.querySelector('[data-action="train"]');
   const statusElement = form?.querySelector('[data-training-status]');
   const videoElement = form?.querySelector('[data-training-video]');
@@ -16,21 +17,14 @@ if (container) {
   const capturesContainer = form?.querySelector('[data-training-captures]');
   const emptyMessage = form?.querySelector('[data-training-empty]');
   const captureCanvas = form?.querySelector('[data-training-canvas]');
-  const testCard = container.querySelector("[data-test-card]");
-  const testStartButton = testCard?.querySelector('[data-action="test-start"]');
-  const testCheckButton = testCard?.querySelector('[data-action="test-check"]');
-  const testStopButton = testCard?.querySelector('[data-action="test-stop"]');
-  const testStatusElement = testCard?.querySelector('[data-test-status]');
-  const testResultContainer = testCard?.querySelector('[data-test-result]');
-  const testResultMessage = testCard?.querySelector('[data-test-result-message]');
-  const testVideoElement = testCard?.querySelector('[data-test-video]');
-  const testPlaceholderElement = testCard?.querySelector('[data-test-placeholder]');
-  const testCanvas = testCard?.querySelector('[data-test-canvas]');
+  const testCanvas = form?.querySelector('[data-test-canvas]');
+  const testStatusElement = form?.querySelector('[data-test-status]');
+  const testResultContainer = form?.querySelector('[data-test-result]');
+  const testResultMessage = form?.querySelector('[data-test-result-message]');
 
   /** @type {{ dataUrl: string; selected: boolean }} */
   const captures = [];
   let mediaStream = null;
-  let testStream = null;
   let testBusy = false;
 
   const streamHasLiveTracks = (stream) => {
@@ -76,9 +70,7 @@ if (container) {
     }
     statusElement.textContent = message || "";
     statusElement.classList.toggle("text-danger", Boolean(isError));
-    if (!isError) {
-      statusElement.classList.add("text-muted");
-    }
+    statusElement.classList.toggle("text-muted", Boolean(message) && !isError);
   };
 
   const setTestStatus = (message, isError = false) => {
@@ -87,9 +79,7 @@ if (container) {
     }
     testStatusElement.textContent = message || "";
     testStatusElement.classList.toggle("text-danger", Boolean(isError));
-    if (!isError) {
-      testStatusElement.classList.add("text-muted");
-    }
+    testStatusElement.classList.toggle("text-muted", Boolean(message) && !isError);
   };
 
   const showTestResult = (message, variant = "info") => {
@@ -124,34 +114,7 @@ if (container) {
     if (captureButton) {
       captureButton.disabled = true;
     }
-  };
-
-  const stopTestCamera = () => {
-    if (!testStream) {
-      return;
-    }
-    const streamToStop = testStream;
-    testStream = null;
-    streamToStop.getTracks().forEach((track) => {
-      try {
-        track.stop();
-      } catch (error) {
-        console.warn("Unable to stop media track", error);
-      }
-    });
-    if (testVideoElement) {
-      testVideoElement.srcObject = null;
-      testVideoElement.setAttribute("hidden", "hidden");
-    }
-    if (testPlaceholderElement) {
-      testPlaceholderElement.removeAttribute("hidden");
-    }
-    if (testCheckButton) {
-      testCheckButton.disabled = true;
-    }
-    if (testStopButton) {
-      testStopButton.disabled = true;
-    }
+    updateButtons();
   };
 
   const updateButtons = () => {
@@ -162,6 +125,11 @@ if (container) {
     if (trainButton) {
       const nameFilled = Boolean(nameInput?.value.trim());
       trainButton.disabled = !hasCaptures || !nameFilled;
+    }
+    if (testButton) {
+      const testingAvailable = Boolean(testingEndpoint);
+      const cameraSupported = Boolean(navigator.mediaDevices?.getUserMedia);
+      testButton.disabled = testBusy || !testingAvailable || !cameraSupported;
     }
   };
 
@@ -226,8 +194,6 @@ if (container) {
       return;
     }
 
-    stopTestCamera();
-
     if (mediaStream) {
       if (streamHasLiveTracks(mediaStream)) {
         return;
@@ -251,6 +217,7 @@ if (container) {
         captureButton.disabled = false;
       }
       setStatus("Camera ready. Capture a variety of angles.");
+      updateButtons();
       monitorStream(mediaStream, () => mediaStream, () => {
         stopCamera();
         setStatus("Camera disconnected. Restart to continue capturing.", true);
@@ -258,51 +225,7 @@ if (container) {
     } catch (error) {
       console.error("Unable to start camera", error);
       setStatus("We couldn't access the camera. Check browser permissions and try again.", true);
-    }
-  };
-
-  const startTestCamera = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setTestStatus("Camera access is not supported in this browser.", true);
-      return;
-    }
-
-    stopCamera();
-
-    if (testStream) {
-      if (streamHasLiveTracks(testStream)) {
-        return;
-      }
-      stopTestCamera();
-    }
-
-    try {
-      testStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: false,
-      });
-      if (testVideoElement) {
-        testVideoElement.srcObject = testStream;
-        testVideoElement.removeAttribute("hidden");
-      }
-      if (testPlaceholderElement) {
-        testPlaceholderElement.setAttribute("hidden", "hidden");
-      }
-      if (testCheckButton) {
-        testCheckButton.disabled = false;
-      }
-      if (testStopButton) {
-        testStopButton.disabled = false;
-      }
-      showTestResult("");
-      setTestStatus("Camera ready. Face the lens to test for matches.");
-      monitorStream(testStream, () => testStream, () => {
-        stopTestCamera();
-        setTestStatus("Camera disconnected. Restart to scan for matches.", true);
-      });
-    } catch (error) {
-      console.error("Unable to start camera", error);
-      setTestStatus("We couldn't access the camera. Check permissions and try again.", true);
+      updateButtons();
     }
   };
 
@@ -412,6 +335,28 @@ if (container) {
     }
   };
 
+  const waitForVideoFrame = async () => {
+    if (!videoElement) {
+      return false;
+    }
+    if (videoElement.videoWidth && videoElement.videoHeight) {
+      return true;
+    }
+
+    await new Promise((resolve) => {
+      const onLoadedData = () => {
+        if (videoElement?.videoWidth && videoElement?.videoHeight) {
+          resolve();
+        } else {
+          resolve();
+        }
+      };
+      videoElement.addEventListener("loadeddata", onLoadedData, { once: true });
+    });
+
+    return Boolean(videoElement.videoWidth && videoElement.videoHeight);
+  };
+
   const checkForMatch = async () => {
     if (testBusy) {
       return;
@@ -420,17 +365,32 @@ if (container) {
       setTestStatus("Testing endpoint unavailable.", true);
       return;
     }
-    if (!testVideoElement || !testCanvas) {
+    if (!videoElement || !testCanvas) {
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setTestStatus("Camera access is not supported in this browser.", true);
+      updateButtons();
       return;
     }
 
-    const width = testVideoElement.videoWidth;
-    const height = testVideoElement.videoHeight;
-    if (!width || !height) {
+    if (!streamHasLiveTracks(mediaStream)) {
+      await startCamera();
+    }
+
+    if (!streamHasLiveTracks(mediaStream)) {
+      setTestStatus("Camera unavailable. Start the camera and try again.", true);
+      return;
+    }
+
+    const hasFrame = await waitForVideoFrame();
+    if (!hasFrame) {
       setTestStatus("Camera is warming up. Try again shortly.", true);
       return;
     }
 
+    const width = videoElement.videoWidth;
+    const height = videoElement.videoHeight;
     const context = testCanvas.getContext("2d");
     if (!context) {
       setTestStatus("Unable to analyse the current frame.", true);
@@ -439,7 +399,7 @@ if (container) {
 
     testCanvas.width = width;
     testCanvas.height = height;
-    context.drawImage(testVideoElement, 0, 0, width, height);
+    context.drawImage(videoElement, 0, 0, width, height);
 
     let dataUrl = "";
     try {
@@ -452,9 +412,7 @@ if (container) {
 
     const csrfToken = getCsrfToken();
     testBusy = true;
-    if (testCheckButton) {
-      testCheckButton.disabled = true;
-    }
+    updateButtons();
     setTestStatus("Checking for trained faces…");
     showTestResult("");
 
@@ -500,9 +458,7 @@ if (container) {
       setTestStatus(error.message || "Unable to test the capture.", true);
     } finally {
       testBusy = false;
-      if (testCheckButton && testStream) {
-        testCheckButton.disabled = false;
-      }
+      updateButtons();
     }
   };
 
@@ -511,26 +467,24 @@ if (container) {
   captureButton?.addEventListener("click", captureFrame);
   clearButton?.addEventListener("click", clearCaptures);
   form?.addEventListener("submit", submitTraining);
-  testStartButton?.addEventListener("click", startTestCamera);
-  testStopButton?.addEventListener("click", stopTestCamera);
-  testCheckButton?.addEventListener("click", checkForMatch);
+  testButton?.addEventListener("click", checkForMatch);
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stopCamera();
-      stopTestCamera();
     }
   });
 
   window.addEventListener("beforeunload", () => {
     stopCamera();
-    stopTestCamera();
   });
 
-  if (!testingEndpoint && testStartButton && testCheckButton && testStopButton) {
-    testStartButton.disabled = true;
-    testCheckButton.disabled = true;
-    testStopButton.disabled = true;
+  if (!testingEndpoint && testButton) {
+    testButton.disabled = true;
     setTestStatus("Testing endpoint unavailable.", true);
+  } else if (testingEndpoint && testStatusElement) {
+    setTestStatus("Use the test button to scan the live feed for known faces.");
   }
+
+  updateButtons();
 }

@@ -33,6 +33,31 @@ if (container) {
   let testStream = null;
   let testBusy = false;
 
+  const streamHasLiveTracks = (stream) => {
+    if (!stream || typeof stream.getTracks !== "function") {
+      return false;
+    }
+    return stream.getTracks().some((track) => track.readyState === "live");
+  };
+
+  const monitorStream = (stream, getLatestStream, onEnded) => {
+    if (!stream || typeof stream.getTracks !== "function") {
+      return;
+    }
+
+    stream.getTracks().forEach((track) => {
+      track.addEventListener("ended", () => {
+        if (getLatestStream() !== stream) {
+          return;
+        }
+        if (streamHasLiveTracks(stream)) {
+          return;
+        }
+        onEnded();
+      });
+    });
+  };
+
   const getCsrfToken = () => {
     const name = "csrftoken";
     const cookies = document.cookie ? document.cookie.split(";") : [];
@@ -80,14 +105,15 @@ if (container) {
     if (!mediaStream) {
       return;
     }
-    mediaStream.getTracks().forEach((track) => {
+    const streamToStop = mediaStream;
+    mediaStream = null;
+    streamToStop.getTracks().forEach((track) => {
       try {
         track.stop();
       } catch (error) {
         console.warn("Unable to stop media track", error);
       }
     });
-    mediaStream = null;
     if (videoElement) {
       videoElement.srcObject = null;
       videoElement.setAttribute("hidden", "hidden");
@@ -104,14 +130,15 @@ if (container) {
     if (!testStream) {
       return;
     }
-    testStream.getTracks().forEach((track) => {
+    const streamToStop = testStream;
+    testStream = null;
+    streamToStop.getTracks().forEach((track) => {
       try {
         track.stop();
       } catch (error) {
         console.warn("Unable to stop media track", error);
       }
     });
-    testStream = null;
     if (testVideoElement) {
       testVideoElement.srcObject = null;
       testVideoElement.setAttribute("hidden", "hidden");
@@ -202,7 +229,10 @@ if (container) {
     stopTestCamera();
 
     if (mediaStream) {
-      return;
+      if (streamHasLiveTracks(mediaStream)) {
+        return;
+      }
+      stopCamera();
     }
 
     try {
@@ -221,6 +251,10 @@ if (container) {
         captureButton.disabled = false;
       }
       setStatus("Camera ready. Capture a variety of angles.");
+      monitorStream(mediaStream, () => mediaStream, () => {
+        stopCamera();
+        setStatus("Camera disconnected. Restart to continue capturing.", true);
+      });
     } catch (error) {
       console.error("Unable to start camera", error);
       setStatus("We couldn't access the camera. Check browser permissions and try again.", true);
@@ -236,7 +270,10 @@ if (container) {
     stopCamera();
 
     if (testStream) {
-      return;
+      if (streamHasLiveTracks(testStream)) {
+        return;
+      }
+      stopTestCamera();
     }
 
     try {
@@ -259,6 +296,10 @@ if (container) {
       }
       showTestResult("");
       setTestStatus("Camera ready. Face the lens to test for matches.");
+      monitorStream(testStream, () => testStream, () => {
+        stopTestCamera();
+        setTestStatus("Camera disconnected. Restart to scan for matches.", true);
+      });
     } catch (error) {
       console.error("Unable to start camera", error);
       setTestStatus("We couldn't access the camera. Check permissions and try again.", true);

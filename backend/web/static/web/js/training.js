@@ -199,6 +199,8 @@ if (container) {
       return;
     }
 
+    stopTestCamera();
+
     if (mediaStream) {
       return;
     }
@@ -230,6 +232,8 @@ if (container) {
       setTestStatus("Camera access is not supported in this browser.", true);
       return;
     }
+
+    stopCamera();
 
     if (testStream) {
       return;

@@ -2,6 +2,7 @@ const container = document.querySelector("[data-training-endpoint]");
 
 if (container) {
   const endpoint = container.dataset.trainingEndpoint;
+  const testingEndpoint = container.dataset.testingEndpoint || "";
   const form = container.querySelector("[data-training-form]");
   const nameInput = form?.querySelector("[data-training-name]");
   const notesInput = form?.querySelector("[data-training-notes]");
@@ -15,10 +16,22 @@ if (container) {
   const capturesContainer = form?.querySelector('[data-training-captures]');
   const emptyMessage = form?.querySelector('[data-training-empty]');
   const captureCanvas = form?.querySelector('[data-training-canvas]');
+  const testCard = container.querySelector("[data-test-card]");
+  const testStartButton = testCard?.querySelector('[data-action="test-start"]');
+  const testCheckButton = testCard?.querySelector('[data-action="test-check"]');
+  const testStopButton = testCard?.querySelector('[data-action="test-stop"]');
+  const testStatusElement = testCard?.querySelector('[data-test-status]');
+  const testResultContainer = testCard?.querySelector('[data-test-result]');
+  const testResultMessage = testCard?.querySelector('[data-test-result-message]');
+  const testVideoElement = testCard?.querySelector('[data-test-video]');
+  const testPlaceholderElement = testCard?.querySelector('[data-test-placeholder]');
+  const testCanvas = testCard?.querySelector('[data-test-canvas]');
 
   /** @type {{ dataUrl: string; selected: boolean }} */
   const captures = [];
   let mediaStream = null;
+  let testStream = null;
+  let testBusy = false;
 
   const getCsrfToken = () => {
     const name = "csrftoken";
@@ -43,6 +56,26 @@ if (container) {
     }
   };
 
+  const setTestStatus = (message, isError = false) => {
+    if (!testStatusElement) {
+      return;
+    }
+    testStatusElement.textContent = message || "";
+    testStatusElement.classList.toggle("text-danger", Boolean(isError));
+    if (!isError) {
+      testStatusElement.classList.add("text-muted");
+    }
+  };
+
+  const showTestResult = (message, variant = "info") => {
+    if (!testResultContainer || !testResultMessage) {
+      return;
+    }
+    testResultContainer.toggleAttribute("hidden", !message);
+    testResultMessage.textContent = message || "";
+    testResultMessage.className = `alert alert-${variant} mb-0`;
+  };
+
   const stopCamera = () => {
     if (!mediaStream) {
       return;
@@ -64,6 +97,33 @@ if (container) {
     }
     if (captureButton) {
       captureButton.disabled = true;
+    }
+  };
+
+  const stopTestCamera = () => {
+    if (!testStream) {
+      return;
+    }
+    testStream.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch (error) {
+        console.warn("Unable to stop media track", error);
+      }
+    });
+    testStream = null;
+    if (testVideoElement) {
+      testVideoElement.srcObject = null;
+      testVideoElement.setAttribute("hidden", "hidden");
+    }
+    if (testPlaceholderElement) {
+      testPlaceholderElement.removeAttribute("hidden");
+    }
+    if (testCheckButton) {
+      testCheckButton.disabled = true;
+    }
+    if (testStopButton) {
+      testStopButton.disabled = true;
     }
   };
 
@@ -162,6 +222,42 @@ if (container) {
     } catch (error) {
       console.error("Unable to start camera", error);
       setStatus("We couldn't access the camera. Check browser permissions and try again.", true);
+    }
+  };
+
+  const startTestCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setTestStatus("Camera access is not supported in this browser.", true);
+      return;
+    }
+
+    if (testStream) {
+      return;
+    }
+
+    try {
+      testStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+      if (testVideoElement) {
+        testVideoElement.srcObject = testStream;
+        testVideoElement.removeAttribute("hidden");
+      }
+      if (testPlaceholderElement) {
+        testPlaceholderElement.setAttribute("hidden", "hidden");
+      }
+      if (testCheckButton) {
+        testCheckButton.disabled = false;
+      }
+      if (testStopButton) {
+        testStopButton.disabled = false;
+      }
+      showTestResult("");
+      setTestStatus("Camera ready. Face the lens to test for matches.");
+    } catch (error) {
+      console.error("Unable to start camera", error);
+      setTestStatus("We couldn't access the camera. Check permissions and try again.", true);
     }
   };
 
@@ -271,19 +367,125 @@ if (container) {
     }
   };
 
+  const checkForMatch = async () => {
+    if (testBusy) {
+      return;
+    }
+    if (!testingEndpoint) {
+      setTestStatus("Testing endpoint unavailable.", true);
+      return;
+    }
+    if (!testVideoElement || !testCanvas) {
+      return;
+    }
+
+    const width = testVideoElement.videoWidth;
+    const height = testVideoElement.videoHeight;
+    if (!width || !height) {
+      setTestStatus("Camera is warming up. Try again shortly.", true);
+      return;
+    }
+
+    const context = testCanvas.getContext("2d");
+    if (!context) {
+      setTestStatus("Unable to analyse the current frame.", true);
+      return;
+    }
+
+    testCanvas.width = width;
+    testCanvas.height = height;
+    context.drawImage(testVideoElement, 0, 0, width, height);
+
+    let dataUrl = "";
+    try {
+      dataUrl = testCanvas.toDataURL("image/jpeg", 0.92);
+    } catch (error) {
+      console.error("Failed to encode frame for testing", error);
+      setTestStatus("We couldn't capture that frame. Try again.", true);
+      return;
+    }
+
+    const csrfToken = getCsrfToken();
+    testBusy = true;
+    if (testCheckButton) {
+      testCheckButton.disabled = true;
+    }
+    setTestStatus("Checking for trained faces…");
+    showTestResult("");
+
+    try {
+      const response = await fetch(testingEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+        },
+        body: JSON.stringify({ image: dataUrl }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        const errorMessage = data?.error || "Unable to evaluate the capture.";
+        throw new Error(errorMessage);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || "Face recognition is unavailable right now.");
+      }
+
+      const confidence = typeof data.confidence === "number" ? data.confidence : 0;
+      if (data.match) {
+        const name = data.match.full_name || "a known operator";
+        showTestResult(
+          `${data.message || "Match found."} Confidence ${confidence.toFixed(2)}.`,
+          "success",
+        );
+        setTestStatus(`Detected ${name} with confidence ${confidence.toFixed(2)}.`);
+      } else {
+        showTestResult(
+          `${data.message || "No trained faces matched."} Confidence ${confidence.toFixed(2)}.`,
+          "warning",
+        );
+        setTestStatus(data.message || "No matches found.");
+      }
+    } catch (error) {
+      console.error("Testing request failed", error);
+      showTestResult(error.message || "Unable to test the capture.", "danger");
+      setTestStatus(error.message || "Unable to test the capture.", true);
+    } finally {
+      testBusy = false;
+      if (testCheckButton && testStream) {
+        testCheckButton.disabled = false;
+      }
+    }
+  };
+
   nameInput?.addEventListener("input", updateButtons);
   startButton?.addEventListener("click", startCamera);
   captureButton?.addEventListener("click", captureFrame);
   clearButton?.addEventListener("click", clearCaptures);
   form?.addEventListener("submit", submitTraining);
+  testStartButton?.addEventListener("click", startTestCamera);
+  testStopButton?.addEventListener("click", stopTestCamera);
+  testCheckButton?.addEventListener("click", checkForMatch);
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stopCamera();
+      stopTestCamera();
     }
   });
 
   window.addEventListener("beforeunload", () => {
     stopCamera();
+    stopTestCamera();
   });
+
+  if (!testingEndpoint && testStartButton && testCheckButton && testStopButton) {
+    testStartButton.disabled = true;
+    testCheckButton.disabled = true;
+    testStopButton.disabled = true;
+    setTestStatus("Testing endpoint unavailable.", true);
+  }
 }

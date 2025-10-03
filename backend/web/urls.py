@@ -13,4 +13,5 @@ urlpatterns = [
     path("settings/", views.settings_view, name="settings"),
     path("api/weather/", views.weather_snapshot, name="weather-snapshot"),
     path("api/training/", views.training_create, name="training-create"),
+    path("api/training/test/", views.training_test, name="training-test"),
 ]

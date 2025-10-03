@@ -532,7 +532,11 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
       const halfHeight = cardHeight / 2;
 
       const verticalOffset = entry.room.verticalOffset ?? 0;
-      let connectionY = y + verticalOffset;
+      const clampedCenterY = clamp(
+        y + verticalOffset,
+        margin + halfHeight,
+        height - margin - halfHeight,
+      );
       let connectionX =
         anchor === 'right'
           ? x + (entry.room.horizontalOffset ?? defaultHorizontalOffset)
@@ -549,17 +553,14 @@ function createRoomAnnotations({ containerEl, camera, renderer, bounds }) {
         entry,
         anchor,
         connectionX,
-        centerY: clamp(
-          connectionY,
-          margin + halfHeight,
-          height - margin - halfHeight,
-        ),
+        centerY: clampedCenterY,
         halfHeight,
         lineStart: { x, y },
       });
 
       entry.line.setAttribute('x1', `${x}`);
       entry.line.setAttribute('y1', `${y}`);
+      entry.line.setAttribute('y2', `${clampedCenterY}`);
     }
 
     preventCollisions(layoutEntries, height, margin, spacing);

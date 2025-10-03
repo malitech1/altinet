@@ -21,6 +21,8 @@ if (container) {
   const testStatusElement = form?.querySelector('[data-test-status]');
   const testResultContainer = form?.querySelector('[data-test-result]');
   const testResultMessage = form?.querySelector('[data-test-result-message]');
+  const testIdentityContainer = form?.querySelector('[data-test-identity]');
+  const testIdentityName = form?.querySelector('[data-test-identity-name]');
 
   /** @type {{ dataUrl: string; selected: boolean }} */
   const captures = [];
@@ -89,6 +91,19 @@ if (container) {
     testResultContainer.toggleAttribute("hidden", !message);
     testResultMessage.textContent = message || "";
     testResultMessage.className = `alert alert-${variant} mb-0`;
+  };
+
+  const showIdentity = (name) => {
+    if (!testIdentityContainer || !testIdentityName) {
+      return;
+    }
+    if (name) {
+      testIdentityName.textContent = name;
+      testIdentityContainer.removeAttribute("hidden");
+    } else {
+      testIdentityName.textContent = "";
+      testIdentityContainer.setAttribute("hidden", "hidden");
+    }
   };
 
   const stopCamera = () => {
@@ -435,6 +450,7 @@ if (container) {
         : "Checking the selected capture for trained faces…",
     );
     showTestResult("");
+    showIdentity("");
 
     try {
       const response = await fetch(testingEndpoint, {
@@ -467,6 +483,7 @@ if (container) {
         setTestStatus(
           `Detected ${name} with confidence ${confidence.toFixed(2)}.`,
         );
+        showIdentity(name);
       } else {
         showTestResult(
           `${data.message || "No trained faces matched."} Confidence ${confidence.toFixed(2)}.`,
@@ -476,11 +493,13 @@ if (container) {
           data.message ||
             "A face was detected, but no trained profile matched.",
         );
+        showIdentity("");
       }
     } catch (error) {
       console.error("Testing request failed", error);
       showTestResult(error.message || "Unable to test the capture.", "danger");
       setTestStatus(error.message || "Unable to test the capture.", true);
+      showIdentity("");
     } finally {
       testBusy = false;
       updateButtons();

@@ -55,6 +55,7 @@ def test_weather_snapshot_endpoint_returns_data(
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
+    assert payload["source"] == "live"
     assert payload["data"]["wind_direction_cardinal"] == "S"
     assert payload["data"]["wind_direction_deg"] == 180
 
@@ -69,7 +70,11 @@ def test_weather_snapshot_endpoint_handles_empty_payload(
 
     response = client.get(reverse("web:weather-snapshot"))
 
-    assert response.status_code == 503
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["source"] == "fallback"
+    assert payload["data"]["weather_summary"] == "Partly cloudy"
 
 
 def test_settings_requires_authentication(client: Client) -> None:

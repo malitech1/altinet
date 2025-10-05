@@ -241,6 +241,12 @@ the Django API and the enrolment CLI. It writes `gallery.npy` and
 `gallery.faiss` into `assets/face_gallery/` alongside JSON snapshots that
 record which curated images were accepted or rejected.
 
+Set the `face_index_path` parameter on `identity_node` to the JSON or YAML
+snapshot produced by enrolment (for example,
+`assets/face_gallery/snapshots/latest.json`). Pointing the parameter to a
+directory such as `.` prevents the node from loading the index and forces it
+to fall back to heuristic classification.
+
 ### 1. Prepare the embedding model
 
 The service expects an ONNX embedding model (e.g. ArcFace) in

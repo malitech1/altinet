@@ -91,16 +91,24 @@ class IdentityNode(Node):  # pragma: no cover - requires ROS runtime
         metadata_path = Path(metadata_path_param) if metadata_path_param else None
         face_index = None
         if face_index_path and face_index_path.exists():
-            try:
-                face_index = load_face_index(face_index_path, metadata_path=metadata_path)
-                if face_index is None:
-                    self.get_logger().warn(
-                        "Face index configuration empty; falling back to heuristics"
-                    )
-            except Exception as exc:  # pragma: no cover - logging best effort
+            if face_index_path.is_dir():
                 self.get_logger().error(
-                    f"Failed to load face index from '{face_index_path}': {exc}"
+                    "face_index_path parameter must point to a JSON or YAML file, "
+                    f"got directory '{face_index_path}'"
                 )
+            else:
+                try:
+                    face_index = load_face_index(
+                        face_index_path, metadata_path=metadata_path
+                    )
+                    if face_index is None:
+                        self.get_logger().warn(
+                            "Face index configuration empty; falling back to heuristics"
+                        )
+                except Exception as exc:  # pragma: no cover - logging best effort
+                    self.get_logger().error(
+                        f"Failed to load face index from '{face_index_path}': {exc}"
+                    )
 
         identity_config = FaceIdentityConfig(
             user_similarity_threshold=float(

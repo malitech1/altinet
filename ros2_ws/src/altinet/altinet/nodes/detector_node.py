@@ -26,6 +26,15 @@ except ImportError as exc:  # pragma: no cover - executed during tests
     Node = object  # type: ignore
     Image = Header = CvBridge = PersonDetectionsMsg = CheckPersonIdentity = None
 
+try:  # pragma: no cover - optional dependency in non-ROS environments
+    from ament_index_python.packages import (
+        PackageNotFoundError,
+        get_package_share_directory,
+    )
+except ImportError:  # pragma: no cover - executed during tests
+    PackageNotFoundError = Exception  # type: ignore[assignment]
+    get_package_share_directory = None
+
 from ..utils.config import default_yolo_config_path, load_file, package_path
 from ..utils.models import YoloConfig, YoloV8Detector
 from ..utils.ros_conversions import detections_to_msg
@@ -68,10 +77,27 @@ def load_config(path: Path) -> YoloConfig:
     if model_path.is_absolute():
         candidates = [model_path]
     else:
+        share_candidates: List[Path] = []
+        if get_package_share_directory is not None:
+            try:
+                share_dir = Path(get_package_share_directory("altinet"))
+            except PackageNotFoundError:  # type: ignore[misc]
+                share_dir = None
+            if share_dir is not None:
+                share_candidates.append(share_dir / model_path)
+        if not share_candidates:
+            try:
+                base_install = Path(__file__).resolve().parents[3]
+            except IndexError:  # pragma: no cover - defensive for unconventional layouts
+                base_install = Path(__file__).resolve()
+            share_candidates.append(
+                base_install / "share" / "altinet" / model_path
+            )
+
         candidates = [
             path.parent / model_path,
             package_path(*model_path.parts),
-            package_path("..", "share", "altinet", *model_path.parts),
+            *share_candidates,
         ]
 
     resolved_model_path: Optional[Path] = None

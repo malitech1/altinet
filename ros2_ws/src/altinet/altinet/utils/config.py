@@ -53,10 +53,19 @@ def _coerce_value(value: str) -> Any:
         return value
 
 
+
+def package_path(*parts: str) -> Path:
+    """Return an absolute path inside the installed package."""
+
+    if not parts:
+        return _PACKAGE_ROOT
+    return _PACKAGE_ROOT / Path(*parts)
+
+
 def package_config_path(*relative: str) -> Path:
     """Return an absolute path inside the package ``config`` directory."""
 
-    return _PACKAGE_ROOT.joinpath("config", *relative)
+    return package_path("config", *relative)
 
 
 def default_yolo_config_path() -> Path:
@@ -73,6 +82,7 @@ def default_face_config_path() -> Path:
 
 __all__ = [
     "load_file",
+    "package_path",
     "package_config_path",
     "default_yolo_config_path",
     "default_face_config_path",

@@ -26,7 +26,7 @@ except ImportError as exc:  # pragma: no cover - executed during tests
     Node = object  # type: ignore
     Image = Header = CvBridge = PersonDetectionsMsg = CheckPersonIdentity = None
 
-from ..utils.config import default_yolo_config_path, load_file
+from ..utils.config import default_yolo_config_path, load_file, package_path
 from ..utils.models import YoloConfig, YoloV8Detector
 from ..utils.ros_conversions import detections_to_msg
 from ..utils.types import Detection
@@ -65,10 +65,34 @@ def load_config(path: Path) -> YoloConfig:
 
     data = load_file(path)
     model_path = Path(data.get("model_path", "assets/models/yolov8n.onnx"))
+    if model_path.is_absolute():
+        candidates = [model_path]
+    else:
+        candidates = [
+            path.parent / model_path,
+            package_path(*model_path.parts),
+            package_path("..", "share", "altinet", *model_path.parts),
+        ]
+
+    resolved_model_path: Optional[Path] = None
+    for candidate in candidates:
+        if candidate.exists():
+            resolved_model_path = candidate
+            break
+
+    if resolved_model_path is None:
+        searched = ", ".join(str(candidate) for candidate in candidates)
+        raise FileNotFoundError(
+            "Unable to locate YOLO model weights. "
+            f"Configured path '{model_path}' was searched at: {searched}"
+        )
+
     conf_thresh = float(data.get("conf_thresh", 0.35))
     iou_thresh = float(data.get("iou_thresh", 0.5))
     return YoloConfig(
-        model_path=model_path, conf_thresh=conf_thresh, iou_thresh=iou_thresh
+        model_path=resolved_model_path,
+        conf_thresh=conf_thresh,
+        iou_thresh=iou_thresh,
     )
 
 

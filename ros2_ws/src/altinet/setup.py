@@ -201,6 +201,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('altinet/launch/*.py')),
         ('share/' + package_name + '/config', glob('altinet/config/*.yaml')),
+        ('share/' + package_name + '/assets/models', glob('assets/models/*')),
     ],
     install_requires=['setuptools', 'onnxruntime>=1.16'],
     zip_safe=True,

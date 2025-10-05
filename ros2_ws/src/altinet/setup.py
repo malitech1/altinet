@@ -1,7 +1,7 @@
 import shutil
 import sys
-from glob import glob
 from pathlib import Path
+from glob import glob
 
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop as _DevelopCommand
@@ -192,6 +192,16 @@ class InstallCommand(_InstallCommand):
 
 package_name = 'altinet'
 
+_ASSETS_MODELS_DIR = Path(__file__).resolve().parents[2] / 'assets' / 'models'
+_ASSETS_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+_MODEL_FILES = [str(path) for path in _ASSETS_MODELS_DIR.glob('*') if path.is_file()]
+
+# Ensure the README placeholder is included so the installation path is created
+# even if the actual model weights are not tracked in the repository yet.
+readme_path = _ASSETS_MODELS_DIR / 'README.md'
+if readme_path.exists() and str(readme_path) not in _MODEL_FILES:
+    _MODEL_FILES.append(str(readme_path))
+
 setup(
     name=package_name,
     version='0.2.0',
@@ -201,7 +211,10 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('altinet/launch/*.py')),
         ('share/' + package_name + '/config', glob('altinet/config/*.yaml')),
-        ('share/' + package_name + '/assets/models', glob('assets/models/*')),
+        (
+            'share/' + package_name + '/assets/models',
+            _MODEL_FILES,
+        ),
     ],
     install_requires=['setuptools', 'onnxruntime>=1.16'],
     zip_safe=True,

@@ -202,7 +202,7 @@ setup(
         ('share/' + package_name + '/launch', glob('altinet/launch/*.py')),
         ('share/' + package_name + '/config', glob('altinet/config/*.yaml')),
     ],
-    install_requires=['setuptools', 'onnxruntime>=1.16'],
+    install_requires=['setuptools', 'onnxruntime>=1.16', 'SpeechRecognition>=3.10'],
     zip_safe=True,
     maintainer='Altinet Maintainer',
     maintainer_email='maintainer@example.com',
@@ -222,6 +222,7 @@ setup(
             'lighting_control_node = altinet.nodes.lighting_control_node:main',
             'ros2_django_bridge_node = altinet.nodes.ros2_django_bridge_node:main',
             'visualizer_node = altinet.nodes.visualizer_node:main',
+            'speech_to_text_node = altinet.nodes.speech_to_text_node:main',
         ],
     },
 )

@@ -51,10 +51,13 @@ Django backend for dashboards and historical analysis.
    The UI is served from Django and is available at
    http://127.0.0.1:8000/ with the admin at http://127.0.0.1:8000/admin/.
 
-3. Build the ROS 2 workspace (requires ROS 2 Foxy/Humble and `colcon`):
+3. Build the ROS 2 workspace (requires ROS 2 Foxy/Humble and `colcon`).
+   Install ROS package dependencies (including `python3-lark`) with `rosdep`
+   before invoking `colcon build`:
 
    ```bash
    cd ros2_ws
+   rosdep install --from-paths src --ignore-src -r -y
    colcon build
    source install/setup.bash
    ```

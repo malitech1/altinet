@@ -43,8 +43,11 @@ def test_load_config_reads_yaml(tmp_path):
     config_path.write_text(
         "model_path: assets/models/yolov8n.onnx\nconf_thresh: 0.5\n", encoding="utf8"
     )
+    model_file = tmp_path / "assets" / "models" / "yolov8n.onnx"
+    model_file.parent.mkdir(parents=True)
+    model_file.write_bytes(b"")
     config = load_config(config_path)
-    assert config.model_path == Path("assets/models/yolov8n.onnx")
+    assert config.model_path == model_file
     assert config.conf_thresh == 0.5
 
 

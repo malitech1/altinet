@@ -52,8 +52,10 @@ Django backend for dashboards and historical analysis.
    http://127.0.0.1:8000/ with the admin at http://127.0.0.1:8000/admin/.
 
 3. Build the ROS 2 workspace (requires ROS 2 Foxy/Humble and `colcon`).
-   Install ROS package dependencies (including `python3-lark`) with `rosdep`
-   before invoking `colcon build`:
+   Install ROS package dependencies with `rosdep` before invoking
+   `colcon build`. The Python requirements already vendor
+   `lark`, so the message generation tooling resolves correctly even when
+   you're working inside a virtual environment:
 
    ```bash
    cd ros2_ws

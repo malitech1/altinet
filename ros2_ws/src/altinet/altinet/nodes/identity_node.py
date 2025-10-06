@@ -86,9 +86,12 @@ class IdentityNode(Node):  # pragma: no cover - requires ROS runtime
 
         cache_ttl = float(self.get_parameter("snapshot_cache_ttl_sec").value)
         self._snapshot_cache = FaceSnapshotCache(cache_ttl)
-        face_index_path = Path(str(self.get_parameter("face_index_path").value or ""))
-        metadata_path_param = str(self.get_parameter("face_index_metadata_path").value or "")
-        metadata_path = Path(metadata_path_param) if metadata_path_param else None
+        face_index_param = str(self.get_parameter("face_index_path").value or "").strip()
+        face_index_path = Path(face_index_param).expanduser() if face_index_param else None
+        metadata_param = (
+            str(self.get_parameter("face_index_metadata_path").value or "").strip()
+        )
+        metadata_path = Path(metadata_param).expanduser() if metadata_param else None
         face_index = None
         if face_index_path and face_index_path.exists():
             if face_index_path.is_dir():

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import math
 import time
 from collections import deque
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Deque, List, Optional
+from typing import Any, Deque, List, Optional
 
 import numpy as np
 
@@ -39,6 +40,69 @@ from ..utils.config import default_yolo_config_path, load_file, package_path
 from ..utils.models import YoloConfig, YoloV8Detector
 from ..utils.ros_conversions import detections_to_msg
 from ..utils.types import Detection
+
+
+def _safe_float(value: Any) -> Optional[float]:
+    """Return ``value`` coerced to ``float`` if possible."""
+
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(numeric) or math.isinf(numeric):
+        return None
+    return numeric
+
+
+def format_identity_log_message(detection: Detection, response: Any) -> str:
+    """Return a human-readable log message for an identity response.
+
+    The identity service may expose additional fields depending on the
+    interface version.  This helper gracefully adds diagnostic details when
+    they are present while keeping the legacy format intact when they are not
+    available.
+    """
+
+    label = getattr(response, "label", "") or (
+        "user" if bool(getattr(response, "is_user", False)) else "guest"
+    )
+    confidence = _safe_float(getattr(response, "confidence", 0.0)) or 0.0
+    reason = getattr(response, "reason", "")
+    bbox = detection.bbox
+
+    message = (
+        f"Identity check for detection in room '{detection.room_id}' "
+        f"(frame '{detection.frame_id}') at x={bbox.x:.1f}, y={bbox.y:.1f} -> "
+        f"{label} (confidence {confidence:.2f}). {reason}"
+    )
+
+    details: List[str] = []
+
+    embedding_id = getattr(response, "embedding_id", None)
+    if isinstance(embedding_id, str):
+        embedding_id = embedding_id.strip()
+    if embedding_id not in {None, ""}:
+        details.append(f"embedding_id={embedding_id}")
+
+    similarity = _safe_float(getattr(response, "embedding_similarity", None))
+    if similarity is not None:
+        details.append(f"similarity={similarity:.3f}")
+
+    snapshot_age = _safe_float(getattr(response, "snapshot_age", None))
+    if snapshot_age is not None:
+        details.append(f"snapshot_age={snapshot_age:.2f}s")
+
+    if hasattr(response, "used_face_embedding"):
+        used = getattr(response, "used_face_embedding")
+        if isinstance(used, bool):
+            details.append(f"used_face_embedding={str(used).lower()}")
+        elif used not in {None, ""}:
+            details.append(f"used_face_embedding={used}")
+
+    if details:
+        message += f" [details: {', '.join(details)}]"
+
+    return message
 
 
 class DetectorPipeline:
@@ -262,17 +326,16 @@ class DetectorNode(Node):  # pragma: no cover - requires ROS runtime
             )
             return
 
-        label = response.label or ("user" if response.is_user else "guest")
-        bbox = detection.bbox
-        message = (
-            f"Identity check for detection in room '{detection.room_id}' "
-            f"(frame '{detection.frame_id}') at x={bbox.x:.1f}, y={bbox.y:.1f} -> "
-            f"{label} (confidence {response.confidence:.2f}). {response.reason}"
-        )
+        message = format_identity_log_message(detection, response)
         self.get_logger().info(message)
 
 
-__all__ = ["DetectorPipeline", "DetectorNode", "load_config"]
+__all__ = [
+    "DetectorPipeline",
+    "DetectorNode",
+    "format_identity_log_message",
+    "load_config",
+]
 
 
 def main(args=None):  # pragma: no cover - requires ROS runtime

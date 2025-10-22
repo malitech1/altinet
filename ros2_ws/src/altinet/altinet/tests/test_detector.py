@@ -5,7 +5,13 @@ from pathlib import Path
 
 import numpy as np
 
-from altinet.nodes.detector_node import DetectorPipeline, load_config
+from types import SimpleNamespace
+
+from altinet.nodes.detector_node import (
+    DetectorPipeline,
+    format_identity_log_message,
+    load_config,
+)
 from altinet.utils.models import _focus_close_range_detection_on_head, _scale_box
 from altinet.utils.types import BoundingBox, Detection
 
@@ -97,3 +103,54 @@ def test_focus_close_range_detection_keeps_regular_boxes():
     adjusted = _focus_close_range_detection_on_head(box, image_shape)
 
     assert adjusted == box
+
+
+def make_detection() -> Detection:
+    return Detection(
+        bbox=BoundingBox(82.3, 73.8, 245.7, 180.4),
+        confidence=0.92,
+        room_id="room_1",
+        frame_id="room_1",
+        timestamp=datetime.utcnow(),
+        image_size=(480, 640),
+    )
+
+
+def test_format_identity_log_message_retains_legacy_format():
+    detection = make_detection()
+    response = SimpleNamespace(
+        label="",
+        is_user=True,
+        confidence=1.0,
+        reason="No face embedding available; area ratio 0.1443 >= threshold 0.0200",
+    )
+
+    message = format_identity_log_message(detection, response)
+
+    assert (
+        message
+        == "Identity check for detection in room 'room_1' (frame 'room_1') "
+        "at x=82.3, y=73.8 -> user (confidence 1.00). "
+        "No face embedding available; area ratio 0.1443 >= threshold 0.0200"
+    )
+
+
+def test_format_identity_log_message_includes_optional_details():
+    detection = make_detection()
+    response = SimpleNamespace(
+        label="user",
+        is_user=True,
+        confidence=0.87,
+        reason="cosine similarity 0.912 >= threshold 0.700",
+        embedding_id="resident_1",
+        embedding_similarity=0.9123,
+        snapshot_age=1.2345,
+        used_face_embedding=True,
+    )
+
+    message = format_identity_log_message(detection, response)
+
+    assert "embedding_id=resident_1" in message
+    assert "similarity=0.912" in message
+    assert "snapshot_age=1.23s" in message
+    assert "used_face_embedding=true" in message

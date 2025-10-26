@@ -2,26 +2,50 @@
 {% load i18n %}
 
 {% block content %}
-<div class="admin-dashboard-grid">
-  {% for app in app_list %}
-  <section class="admin-dashboard-card">
-    <h2>{{ app.name }}</h2>
-    <ul>
-      {% for model in app.models %}
-      <li>
-        <a href="{{ model.admin_url }}">{{ model.name }}</a>
-        {% if model.perms.add %}
-        <a href="{{ model.add_url }}" class="badge">{% trans 'Add' %}</a>
-        {% endif %}
-        {% if model.perms.change %}
-        <a href="{{ model.admin_url }}" class="badge">{% trans 'View' %}</a>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% empty %}
-  <p class="lead">{% trans "You don't have access to any modules." %}</p>
-  {% endfor %}
+<div class="container-fluid px-4">
+  <div class="row justify-content-between align-items-center mb-4">
+    <div class="col">
+      <h1 class="h3 fw-semibold mb-0">{% trans 'Administration overview' %}</h1>
+      <p class="text-muted mt-2 mb-0">
+        {% trans "Manage Altinet resources using the tools below." %}
+      </p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    {% for app in app_list %}
+    <div class="col-12 col-md-6 col-xl-4">
+      <section class="card border-0 shadow-sm h-100 admin-dashboard-card">
+        <div class="card-body">
+          <h2 class="h5 card-title mb-3">{{ app.name }}</h2>
+          <ul class="list-unstyled mb-0">
+            {% for model in app.models %}
+            <li class="d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
+              <a class="link-dark text-decoration-none fw-medium" href="{{ model.admin_url }}">{{ model.name }}</a>
+              <div class="d-flex gap-2">
+                {% if model.perms.add %}
+                <a href="{{ model.add_url }}" class="btn btn-sm btn-outline-primary">{% trans 'Add' %}</a>
+                {% endif %}
+                {% if model.perms.change %}
+                <a href="{{ model.admin_url }}" class="btn btn-sm btn-primary">{% trans 'View' %}</a>
+                {% endif %}
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="alert alert-info d-flex align-items-center" role="alert">
+        <div class="me-2">
+          <span class="badge bg-info text-dark">{% trans "Heads up" %}</span>
+        </div>
+        <span>{% trans "You don't have access to any modules." %}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

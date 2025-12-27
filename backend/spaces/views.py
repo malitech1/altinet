@@ -97,7 +97,14 @@ class CameraViewSet(viewsets.ModelViewSet):
         serializer = CameraTestConnectionSerializer(data=payload)
         if serializer.is_valid():
             return Response(serializer.validated_data)
-        return Response(payload)
+        return Response(
+            {
+                "detail": "Invalid bridge response",
+                "errors": serializer.errors,
+                "raw": payload,
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
 
     @action(detail=True, methods=["post"], url_path="calibration/start")
     def calibration_start(self, request, pk: str | None = None) -> Response:

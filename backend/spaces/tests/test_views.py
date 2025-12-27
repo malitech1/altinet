@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import pytest
 from django.contrib.auth.models import User
+from rest_framework import status
 
 from spaces.models import Camera, CameraCalibrationRun
 
@@ -157,6 +158,42 @@ def test_camera_endpoints(monkeypatch, api_client, room):
     assert response.status_code == 200
     camera = Camera.objects.get(id=camera_id)
     assert camera.intrinsics["fx"] == 1.0
+
+
+@pytest.mark.django_db
+def test_camera_test_connection_handles_invalid_bridge_response(
+    monkeypatch, api_client, room
+):
+    class DummyBridge:
+        def probe_camera(self, camera_id: str):
+            return {"message": "bridge unavailable"}
+
+    monkeypatch.setattr("spaces.views.ROSBridgeClient", lambda: DummyBridge())
+
+    camera = Camera.objects.create(
+        name="Unhealthy Cam",
+        room=room,
+        make="Generic",
+        model="Cam",
+        rtsp_url="rtsp://user:pass@cam/stream",
+        resolution_w=1920,
+        resolution_h=1080,
+        fps=30,
+        fov_deg=90.0,
+        position_mm={"x_mm": 0, "y_mm": 0, "z_mm": 2000},
+        yaw_deg=0.0,
+        pitch_deg=0.0,
+        roll_deg=0.0,
+    )
+
+    response = api_client.post(
+        f"/api/cameras/{camera.id}/test-connection/", {}, format="json"
+    )
+
+    assert response.status_code == status.HTTP_502_BAD_GATEWAY
+    assert response.data["detail"] == "Invalid bridge response"
+    assert "ok" in response.data["errors"]
+    assert response.data["raw"] == {"message": "bridge unavailable"}
 
 
 @pytest.mark.django_db

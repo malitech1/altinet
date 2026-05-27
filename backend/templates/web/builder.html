@@ -110,9 +110,12 @@
             <button type="button" class="btn btn-outline-primary" data-tool="room">
               Room tool
             </button>
+            <button type="button" class="btn btn-outline-primary" data-tool="door">
+              Door tool
+            </button>
           </div>
           <p class="small text-muted mb-0 flex-grow-1 order-3 order-md-2">
-            Room tool: click to add vertices, then click the first point or double-click to close the shape.
+            Room tool: click to add vertices, then click the first point or double-click to close the shape. Door tool: click a wall to place a movable door symbol.
           </p>
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-secondary" id="undoLast">
@@ -270,6 +273,13 @@
     let selectedWallIndex = null;
     let roomDraftPoints = [];
     let builderSettings = { ...defaultSettings };
+    const doorOpeningWidthPx = Math.max(
+      18,
+      Math.round((defaultSettings.internalDoorWidthMm / mmPerPixel) / 2) * 2,
+    );
+    const doorSelectionThresholdPx = 16;
+    let selectedDoorId = null;
+    let draggingDoorId = null;
 
     const canvasContainer = document.getElementById("builderCanvasContainer");
     const wallEditor = document.getElementById("wallEditor");
@@ -478,6 +488,25 @@
               return { start, end };
             })
             .filter(Boolean),
+          doors: Array.isArray(level.doors)
+            ? level.doors
+                .map((door) => {
+                  if (!door || typeof door.wallIndex !== "number") {
+                    return null;
+                  }
+                  const offset = Number(door.offset);
+                  if (!Number.isFinite(offset)) {
+                    return null;
+                  }
+                  return {
+                    id: door.id || uuid(),
+                    wallIndex: door.wallIndex,
+                    offset,
+                    width: Number.isFinite(Number(door.width)) ? Number(door.width) : doorOpeningWidthPx,
+                  };
+                })
+                .filter(Boolean)
+            : [],
           rooms: level.rooms.map((room) => {
             const polygon = getRoomPolygon(room);
             const points = polygon.length >= 3 ? polygon : undefined;
@@ -564,6 +593,8 @@
 
     function setActiveTool(tool) {
       activeTool = tool;
+      selectedDoorId = null;
+      draggingDoorId = null;
       toolButtons.forEach((button) => {
         if (button.dataset.tool === tool) {
           button.classList.add("active");
@@ -616,6 +647,7 @@
         id: uuid(),
         name,
         walls: [],
+        doors: [],
         rooms: [],
       };
     }
@@ -687,10 +719,30 @@
                 };
               })
             : [];
+          const doors = Array.isArray(level.doors)
+            ? level.doors
+                .map((door) => {
+                  if (!door || typeof door.wallIndex !== "number") {
+                    return null;
+                  }
+                  const offset = Number(door.offset);
+                  if (!Number.isFinite(offset)) {
+                    return null;
+                  }
+                  return {
+                    id: door.id || uuid(),
+                    wallIndex: door.wallIndex,
+                    offset,
+                    width: Number.isFinite(Number(door.width)) ? Number(door.width) : doorOpeningWidthPx,
+                  };
+                })
+                .filter(Boolean)
+            : [];
           return {
             id: level.id || uuid(),
             name: level.name || `Level ${index + 1}`,
             walls,
+            doors,
             rooms,
           };
         });
@@ -829,6 +881,57 @@
       return null;
     }
 
+    function getDoorGeometry(door) {
+      const level = getActiveLevel();
+      if (!level || !door || typeof door.wallIndex !== "number") {
+        return null;
+      }
+      const wall = level.walls[door.wallIndex];
+      if (!wall || !wall.start || !wall.end) {
+        return null;
+      }
+      const dx = wall.end.x - wall.start.x;
+      const dy = wall.end.y - wall.start.y;
+      const wallLength = Math.hypot(dx, dy);
+      if (!Number.isFinite(wallLength) || wallLength < 1) {
+        return null;
+      }
+      const unitX = dx / wallLength;
+      const unitY = dy / wallLength;
+      const doorWidth = Math.max(16, Number(door.width) || doorOpeningWidthPx);
+      const clampedOffset = Math.max(0, Math.min(wallLength, Number(door.offset) || 0));
+      const hinge = {
+        x: wall.start.x + unitX * clampedOffset,
+        y: wall.start.y + unitY * clampedOffset,
+      };
+      const doorEnd = {
+        x: wall.start.x + unitX * Math.min(wallLength, clampedOffset + doorWidth),
+        y: wall.start.y + unitY * Math.min(wallLength, clampedOffset + doorWidth),
+      };
+      const normalX = -unitY;
+      const normalY = unitX;
+      return { wall, wallLength, doorWidth, clampedOffset, hinge, doorEnd, unitX, unitY, normalX, normalY };
+    }
+
+    function cleanupDoorsForWalls(level) {
+      if (!level || !Array.isArray(level.doors)) {
+        return;
+      }
+      level.doors = level.doors.filter((door) => {
+        if (!door || typeof door.wallIndex !== "number") {
+          return false;
+        }
+        const wall = level.walls[door.wallIndex];
+        if (!wall || !wall.start || !wall.end) {
+          return false;
+        }
+        return true;
+      });
+      if (selectedDoorId && !level.doors.some((door) => door.id === selectedDoorId)) {
+        selectedDoorId = null;
+      }
+    }
+
     function getWallLengthMm(wall) {
       if (!wall || !wall.start || !wall.end) {
         return 0;
@@ -953,6 +1056,14 @@
 
     function handleWallRemoval(removedIndex) {
       const level = getActiveLevel();
+      if (level && Array.isArray(level.doors)) {
+        level.doors = level.doors
+          .filter((door) => door.wallIndex !== removedIndex)
+          .map((door) => ({
+            ...door,
+            wallIndex: door.wallIndex > removedIndex ? door.wallIndex - 1 : door.wallIndex,
+          }));
+      }
       if (selectedWallIndex === null) {
         return;
       }
@@ -1054,6 +1165,59 @@
       ctx.restore();
     }
 
+    function renderDoors() {
+      const level = getActiveLevel();
+      if (!level || !Array.isArray(level.doors)) {
+        return;
+      }
+      ctx.save();
+      level.doors.forEach((door) => {
+        const geometry = getDoorGeometry(door);
+        if (!geometry) {
+          return;
+        }
+        const { hinge, doorEnd, wallLength, doorWidth, clampedOffset, unitX, unitY, normalX, normalY } = geometry;
+        const arcRadius = Math.min(doorWidth, wallLength - clampedOffset);
+        const sweepEnd = { x: hinge.x + normalX * arcRadius, y: hinge.y + normalY * arcRadius };
+
+        ctx.strokeStyle = "rgba(248, 249, 250, 1)";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(hinge.x, hinge.y);
+        ctx.lineTo(doorEnd.x, doorEnd.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = door.id === selectedDoorId ? "rgba(13, 110, 253, 0.95)" : "rgba(0, 0, 0, 0.9)";
+        ctx.lineWidth = door.id === selectedDoorId ? 3 : 2.5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(hinge.x, hinge.y);
+        ctx.lineTo(doorEnd.x, doorEnd.y);
+        ctx.stroke();
+
+        const startAngle = Math.atan2(unitY, unitX);
+        const endAngle = Math.atan2(normalY, normalX);
+        ctx.beginPath();
+        ctx.arc(hinge.x, hinge.y, arcRadius, startAngle, endAngle, false);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(doorEnd.x, doorEnd.y);
+        ctx.lineTo(sweepEnd.x, sweepEnd.y);
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.fillStyle = door.id === selectedDoorId ? "rgba(13, 110, 253, 1)" : "rgba(0, 0, 0, 0.95)";
+        ctx.arc(hinge.x, hinge.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
     function renderPreview() {
       if (!isDrawing) {
         return;
@@ -1102,6 +1266,7 @@
       drawGrid();
       renderRooms();
       renderWalls();
+      renderDoors();
       renderPreview();
       if (selectedWallIndex !== null) {
         const level = getActiveLevel();
@@ -1150,6 +1315,54 @@
         li.dataset.index = index;
         roomList.appendChild(li);
       });
+    }
+
+    function findDoorNearPoint(point, threshold = doorSelectionThresholdPx) {
+      const level = getActiveLevel();
+      if (!level || !Array.isArray(level.doors)) {
+        return null;
+      }
+      for (let index = level.doors.length - 1; index >= 0; index -= 1) {
+        const door = level.doors[index];
+        const geometry = getDoorGeometry(door);
+        if (!geometry) {
+          continue;
+        }
+        if (distanceBetweenPoints(point, geometry.hinge) <= threshold) {
+          return { door, index, geometry };
+        }
+      }
+      return null;
+    }
+
+    function createDoorFromPoint(point) {
+      const level = getActiveLevel();
+      if (!level) {
+        return;
+      }
+      const hit = findWallNearPoint(point, 14);
+      if (!hit) {
+        return;
+      }
+      const { wall, index } = hit;
+      const dx = wall.end.x - wall.start.x;
+      const dy = wall.end.y - wall.start.y;
+      const wallLength = Math.hypot(dx, dy);
+      if (wallLength < 1) {
+        return;
+      }
+      const unitX = dx / wallLength;
+      const unitY = dy / wallLength;
+      const proj = (point.x - wall.start.x) * unitX + (point.y - wall.start.y) * unitY;
+      const offset = Math.max(0, Math.min(Math.max(0, wallLength - doorOpeningWidthPx), proj));
+      const door = { id: uuid(), wallIndex: index, offset, width: doorOpeningWidthPx };
+      if (!Array.isArray(level.doors)) {
+        level.doors = [];
+      }
+      level.doors.push(door);
+      selectedDoorId = door.id;
+      persistState();
+      render();
     }
 
     function handlePointerDown(event) {
@@ -1211,6 +1424,18 @@
         previewPoint = { ...snapped };
         render();
       }
+
+      if (activeTool === "door") {
+        const canvasPoint = getCanvasPoint(clientX, clientY);
+        const doorHit = findDoorNearPoint(canvasPoint);
+        if (doorHit) {
+          selectedDoorId = doorHit.door.id;
+          draggingDoorId = doorHit.door.id;
+          render();
+          return;
+        }
+        createDoorFromPoint(canvasPoint);
+      }
     }
 
     function handlePointerMove(event) {
@@ -1219,6 +1444,19 @@
       }
       if (drawingMode === "wall" || drawingMode === "room") {
         previewPoint = snapToGrid(event.clientX, event.clientY);
+        render();
+        return;
+      }
+      if (activeTool === "door" && draggingDoorId) {
+        const level = getActiveLevel();
+        const door = level && Array.isArray(level.doors) ? level.doors.find((item) => item.id === draggingDoorId) : null;
+        const geometry = door ? getDoorGeometry(door) : null;
+        if (!door || !geometry) {
+          return;
+        }
+        const point = getCanvasPoint(event.clientX, event.clientY);
+        const proj = (point.x - geometry.wall.start.x) * geometry.unitX + (point.y - geometry.wall.start.y) * geometry.unitY;
+        door.offset = Math.max(0, Math.min(Math.max(0, geometry.wallLength - geometry.doorWidth), proj));
         render();
       }
     }
@@ -1268,6 +1506,11 @@
     }
 
     function handlePointerUp(event) {
+      if (draggingDoorId) {
+        draggingDoorId = null;
+        persistState();
+        return;
+      }
       if (!isDrawing || drawingMode !== "wall") {
         return;
       }
@@ -1282,6 +1525,10 @@
 
     function handlePointerLeave() {
       if (!isDrawing) {
+        if (draggingDoorId) {
+          draggingDoorId = null;
+          persistState();
+        }
         return;
       }
       if (drawingMode === "wall") {
@@ -1375,6 +1622,7 @@
         }
         const previousIndex = selectedWallIndex;
         level.walls.splice(previousIndex, 1);
+        cleanupDoorsForWalls(level);
         persistState();
         if (level.walls.length > 0) {
           const nextIndex = Math.min(previousIndex, level.walls.length - 1);
@@ -1407,6 +1655,7 @@
         previewPoint = null;
       }
       level.walls.length = 0;
+      level.doors = [];
       level.rooms.length = 0;
       updateRoomList();
       render();
@@ -1442,6 +1691,7 @@
         const removedIndex = level.walls.length - 1;
         level.walls.pop();
         handleWallRemoval(removedIndex);
+        cleanupDoorsForWalls(level);
         changed = true;
       } else if (activeTool === "room" && level.rooms.length) {
         level.rooms.pop();
@@ -1451,6 +1701,11 @@
         const removedIndex = level.walls.length - 1;
         level.walls.pop();
         handleWallRemoval(removedIndex);
+        cleanupDoorsForWalls(level);
+        changed = true;
+      } else if (activeTool === "door" && Array.isArray(level.doors) && level.doors.length) {
+        level.doors.pop();
+        selectedDoorId = null;
         changed = true;
       } else if (level.rooms.length) {
         level.rooms.pop();
@@ -1527,6 +1782,7 @@
             return { start, end };
           })
           .filter(Boolean),
+        doors: (active.doors || []).map((door) => ({ ...door, id: uuid() })),
         rooms: active.rooms.map((room) => {
           const points =
             Array.isArray(room.points) && room.points.length >= 3

@@ -10,7 +10,8 @@
 {% block body_class %}home-page{% endblock %}
 
 {% block content %}
-<div class="row g-4 align-items-stretch home-layout">
+<div class="dashboard-shell d-flex flex-column gap-3">
+<div class="row g-4 align-items-stretch home-layout dashboard-main-row">
   <div class="col-12 col-xl-4 col-xxl-3">
     <section
       class="environment-card bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm h-100 p-3 p-lg-4"
@@ -197,7 +198,7 @@
   </div>
 </div>
 
-<div class="row mt-4">
+<div class="row g-3 dashboard-secondary-row">
   <div class="col-12">
     <section class="residents-card bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-3 p-lg-4">
       <header class="mb-3 d-flex flex-wrap justify-content-between align-items-end gap-2">
@@ -211,7 +212,7 @@
     </section>
   </div>
 </div>
-<div class="row mt-4">
+<div class="row g-3 dashboard-secondary-row">
   <div class="col-12">
     <section class="assistant-card bg-white border border-2 border-secondary-subtle rounded-4 shadow-sm p-3 p-lg-4">
       <header class="mb-3">
@@ -241,6 +242,7 @@
       </div>
     </section>
   </div>
+</div>
 </div>
 {% endblock %}
 
